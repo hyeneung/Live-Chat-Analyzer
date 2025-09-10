@@ -7,10 +7,10 @@ assignees: ''
 
 ---
 
-## Work Details
+## 📋 Work Details
 - 
 
-## Task List
+## ✅ Task List
 - [ ] TODO
 - [ ] TODO
 - [ ] TODO
