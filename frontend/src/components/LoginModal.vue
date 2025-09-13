@@ -13,8 +13,8 @@
       <div class="bg-white text-gray-800 p-8 rounded-lg shadow-xl text-center w-full max-w-md mx-4">
         
         <!-- Modal content -->
-        <h2 class="text-2xl font-bold mb-4">로그인이 필요합니다</h2>
-        <p class="mb-6">방송을 시청하려면 로그인을 해주세요.</p>
+        <h2 class="text-2xl font-bold mb-4">{{ title }}</h2>
+        <p class="mb-6">{{ message }}</p>
         
         <!-- Google Login Button -->
         <button @click="loginWithGoogle" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center transition">
@@ -30,35 +30,95 @@
 </template>
 
 <script setup>
-// Import functions from Vue to define component properties and events.
-import { defineProps, defineEmits } from 'vue';
+import { defineProps, defineEmits, onMounted, onUnmounted, computed } from 'vue';
 
 // --- Component Properties (Props) ---
-defineProps({
-  // The `show` prop is a boolean that determines whether the modal is visible.
-  // It is required, meaning the parent component must provide it.
+const props = defineProps({
   show: {
     type: Boolean,
     required: true,
   },
+  context: {
+    type: String,
+    default: 'watch', // 'watch' or 'nav'
+  },
 });
 
+const title = computed(() => {
+  return props.context === 'watch' ? '로그인이 필요합니다' : '로그인';
+});
+
+const message = computed(() => {
+  return props.context === 'watch'
+    ? '방송을 시청하려면 로그인을 해주세요.'
+    : '';
+});
+
+
 // --- Component Events (Emits) ---
-// Defines the custom events that this component can send to its parent.
 const emit = defineEmits(['close', 'login-success']);
 
+let popupWindow = null; // To keep track of the opened popup window
+
 // --- Methods ---
-// This function is called when the "Login with Google" button is clicked.
 const loginWithGoogle = () => {
-  // It emits the 'login-success' event to the parent component (App.vue).
-  emit('login-success');
+  const width = 500;
+  const height = 600;
+  const left = (window.screen.width / 2) - (width / 2);
+  const top = (window.screen.height / 2) - (height / 2);
+
+  popupWindow = window.open(
+    `${process.env.VUE_APP_BACKEND_URL}/api/v1/users/login/google`,
+    'GoogleLogin',
+    `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no,location=no,status=no`
+  );
 };
 
-// This function is called when the "나중에 하기" (Do it later) button is clicked.
 const closeModal = () => {
-  // It emits the 'close' event to the parent component (App.vue).
   emit('close');
 };
+
+// --- Handle messages from the popup window ---
+const handleMessage = (event) => {
+  // Ensure the message is from the expected origin for security
+  if (event.origin !== process.env.VUE_APP_BACKEND_URL) { // Backend origin
+    console.warn('Message received from unexpected origin:', event.origin);
+    return;
+  }
+
+  const { accessToken, refreshToken, name, profileImage } = event.data;
+
+  if (accessToken && refreshToken && name && profileImage) {
+    localStorage.setItem('accessToken', accessToken);
+    localStorage.setItem('refreshToken', refreshToken);
+    localStorage.setItem('userName', name);
+    localStorage.setItem('userProfileImage', profileImage);
+    
+    emit('login-success'); // Notify parent of successful login
+    closeModal(); // Close the login modal
+  } else {
+    console.error('Login data incomplete:', event.data);
+    // Optionally, show an error message to the user
+  }
+
+  if (popupWindow) {
+    popupWindow.close(); // Close the popup after processing
+    popupWindow = null;
+  }
+};
+
+// --- Lifecycle Hooks ---
+onMounted(() => {
+  window.addEventListener('message', handleMessage);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('message', handleMessage);
+  if (popupWindow) {
+    popupWindow.close(); // Ensure popup is closed if component unmounts
+    popupWindow = null;
+  }
+});
 </script>
 
 <style scoped>
