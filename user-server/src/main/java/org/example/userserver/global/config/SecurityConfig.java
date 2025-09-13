@@ -51,6 +51,8 @@ public class SecurityConfig {
                         .requestMatchers("/", "/oauth2/**", "/login/oauth2/**").permitAll()
                         // User-specific public API endpoints
                         .requestMatchers("/api/v1/users/login/google", "/api/v1/users/reissue").permitAll()
+                        // home screen api
+                        .requestMatchers("/api/v1/streams").permitAll()
                         .anyRequest().authenticated()); // All other requests require authentication
 
         http
