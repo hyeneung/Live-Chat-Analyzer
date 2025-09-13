@@ -31,6 +31,7 @@
 import { ref, onMounted, onBeforeUnmount, defineProps, defineEmits } from 'vue';
 import { useRouter } from 'vue-router';
 import BroadcastCard from '../components/BroadcastCard.vue';
+import axios from 'axios';
 
 // --- Component Properties (Props) ---
 // This component receives the `user` object from its parent (App.vue via router-view).
@@ -68,30 +69,29 @@ const joinBroadcast = (broadcastId) => {
   }
 };
 
-// This function generates mock data for the broadcast list.
-const generateMockData = () => {
-    const hosts = [
-        { name: '게임스트리머', profilePic: 'https://placehold.co/100x100/7E22CE/FFFFFF?text=G' },
-        { name: '뮤직크리에이터', profilePic: 'https://placehold.co/100x100/DB2777/FFFFFF?text=M' },
-        { name: '일상브이로거', profilePic: 'https://placehold.co/100x100/16A34A/FFFFFF?text=V' },
-        { name: 'IT전문가', profilePic: 'https://placehold.co/100x100/D97706/FFFFFF?text=IT' },
-        { name: '요리왕', profilePic: 'https://placehold.co/100x100/DC2626/FFFFFF?text=C' },
-        { name: '프로그래머', profilePic: 'https://placehold.co/100x100/0284C7/FFFFFF?text=P' },
-    ];
-    const titles = [
-        'Vue.js 3 완벽 마스터하기', '오늘 밤은 치킨 먹방!', '여러분의 고민을 들어드려요', 
-        '새로운 인디게임 플레이', '직장인 리얼 라이프', '코딩하며 함께 밤새기'
-    ];
+const fetchBroadcasts = async () => {
+  try {
+    const response = await axios.get(`${process.env.VUE_APP_BACKEND_URL}/api/v1/streams`, {
+      params: { page: 0 }
+    });
 
-    broadcasts.value = Array.from({ length: 6 }).map((_, i) => ({
-        id: i + 1,
-        title: titles[i % titles.length],
-        host: hosts[i % hosts.length],
-        thumbnailUrl: `https://placehold.co/600x400/1F2937/FFFFFF?text=방송+${i+1}`,
-        viewerCount: Math.floor(Math.random() * 500) + 50,
-        startTime: new Date(Date.now() - Math.random() * 1000 * 60 * 120), // Random time within the last 2 hours
+    broadcasts.value = response.data.streams.map(stream => ({
+      id: stream.id,
+      title: stream.title,
+      host: {
+        name: stream.hostname,
+        profilePic: stream.hostprofile,
+      },
+      thumbnailUrl: stream.thumbnailUrl,
+      viewerCount: Math.floor(Math.random() * 500) + 50, // Mock viewer count
+      startTime: stream.createdAt,
     }));
+  } catch (error) {
+    console.error('Error fetching broadcasts:', error);
+    // Handle error appropriately, e.g., show a message to the user
+  }
 };
+
 
 // This function simulates real-time updates for viewer counts.
 const startLobbySimulation = () => {
@@ -110,8 +110,7 @@ const startLobbySimulation = () => {
 // --- Lifecycle Hooks ---
 // `onMounted` is a function that runs after the component has been inserted into the DOM.
 onMounted(() => {
-  // Generate the initial data for the list.
-  generateMockData();
+  fetchBroadcasts();
   // Start the real-time simulation.
   startLobbySimulation();
 });
