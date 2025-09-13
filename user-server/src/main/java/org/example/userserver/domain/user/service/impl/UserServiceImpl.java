@@ -68,26 +68,26 @@ public class UserServiceImpl implements UserService {
             throw new UserException(UserExceptionDetails.INVALID_REFRESH_TOKEN);
         }
 
-        // 2. Extract email from Refresh Token
-        String email = jwtUtil.getEmailFromToken(refreshToken);
+        // 2. Extract userId from Refresh Token
+        Long userId = jwtUtil.getUserIdFromToken(refreshToken);
 
         // 3. Verify Refresh Token against Redis
-        String storedRefreshToken = redisTemplate.opsForValue().get("RT:" + email);
+        String storedRefreshToken = redisTemplate.opsForValue().get("RT:" + userId);
         if (storedRefreshToken == null || !storedRefreshToken.equals(refreshToken)) {
             throw new UserException(UserExceptionDetails.REFRESH_TOKEN_MISMATCH);
         }
 
         // 4. Retrieve User information
-        User user = userRepository.findByEmail(email)
+        User user = userRepository.findById(userId)
                 .orElseThrow(() -> new UserException(UserExceptionDetails.USER_NOT_FOUND));
 
         // 5. Generate new Access Token and Refresh Token (Rotation)
-        String newAccessToken = jwtUtil.generateAccessToken(user.getEmail(), user.getRoleKey());
-        String newRefreshToken = jwtUtil.generateRefreshToken(user.getEmail());
+        String newAccessToken = jwtUtil.generateAccessToken(user.getId(), user.getRoleKey());
+        String newRefreshToken = jwtUtil.generateRefreshToken(user.getId());
 
         // 6. Store new Refresh Token in Redis
         redisTemplate.opsForValue().set(
-                "RT:" + user.getEmail(),
+                "RT:" + user.getId(),
                 newRefreshToken,
                 jwtUtil.getRefreshTokenExpiration(),
                 TimeUnit.MILLISECONDS

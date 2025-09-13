@@ -1,11 +1,9 @@
 package org.example.userserver.domain.user.handler;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.example.userserver.domain.user.dto.response.GoogleLoginResponseDto;
 import org.example.userserver.domain.user.entity.User;
 import org.example.userserver.domain.user.service.UserService;
 import org.example.userserver.global.jwt.JwtUtil;
@@ -27,7 +25,6 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
     private final JwtUtil jwtUtil;
     private final UserService userService;
     private final RedisTemplate<String, String> redisTemplate;
-    private final ObjectMapper objectMapper;
 
     /**
      * This method is triggered after a user successfully authenticates via an OAuth2 provider (e.g., Google).
@@ -52,8 +49,8 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
         User user = userService.processOAuth2User(attributes);
 
         // Generate our application's own Access and Refresh tokens
-        String accessToken = jwtUtil.generateAccessToken(user.getEmail(), user.getRoleKey());
-        String refreshToken = jwtUtil.generateRefreshToken(user.getEmail());
+        String accessToken = jwtUtil.generateAccessToken(user.getId(), user.getRoleKey());
+        String refreshToken = jwtUtil.generateRefreshToken(user.getId());
 
         // Store the Refresh Token in Redis for later validation
         redisTemplate.opsForValue().set(
@@ -65,19 +62,20 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
 
         log.info("Successfully logged in with Google. User email: {}", user.getEmail());
 
-        // Build the DTO to be sent in the response
-        GoogleLoginResponseDto loginResponse = GoogleLoginResponseDto.builder()
-            .userId(user.getId())
-            .userRole(user.getRoleKey())
-            .profileImage(user.getProfileImage())
-            .accessToken(accessToken)
-            .refreshToken(refreshToken)
-            .build();
-
-        // Write the DTO to the HTTP response body as JSON
-        response.setStatus(HttpServletResponse.SC_OK);
-        response.setContentType("application/json");
-        response.setCharacterEncoding("UTF-8");
-        response.getWriter().write(objectMapper.writeValueAsString(loginResponse));
+        response.setContentType("text/html;charset=UTF-8");
+        response.getWriter().write(
+            "<!DOCTYPE html><html><head><title>Login Success</title></head><body>" +
+                    "<script>" +
+                    "  try {" +
+                    "    const data = { accessToken: '" + accessToken + "', refreshToken: '" + refreshToken + "', name: '" + user.getName() + "', profileImage: '" + user.getProfileImage() + "' };" +
+                    "    window.opener.postMessage(data, 'http://localhost:3000');" +
+                    "  } catch (e) {" +
+                    "    console.error('Error sending message:', e);" +
+                    "  } finally {" +
+                    "    window.close();" +
+                    "  }" +
+                    "</script>" +
+                    "</body></html>"
+        );
     }
 }

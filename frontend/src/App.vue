@@ -5,10 +5,9 @@
     <!-- 
       The navigation bar.
       It is conditionally rendered using v-if. It will not be shown if the current route is the BroadcastRoom.
-      It receives the `user` object as a prop to display user info.
       It listens for `show-login` and `logout` events from the NavBar component.
     -->
-    <NavBar v-if="!isBroadcastRoom" :user="user" @show-login="showLoginModal" @logout="logout" />
+    <NavBar v-if="!isBroadcastRoom" @show-login="showLoginModal('nav')" @logout="logout" ref="navBarRef" />
 
     <!-- 
       The main content area.
@@ -17,10 +16,9 @@
     <main :class="{ 'p-4 md:p-8': !isBroadcastRoom }">
       <!-- 
         This is where the router displays the component for the current URL.
-        It passes the `user` object down to the page component (e.g., BroadcastList).
         It also listens for the `show-login` event that can be emitted from child components.
       -->
-      <router-view :user="user" @show-login="showLoginModal" />
+      <router-view @show-login="showLoginModal('watch')" />
     </main>
 
     <!-- 
@@ -28,22 +26,28 @@
       Its visibility is controlled by the `isLoginModalVisible` state.
       It listens for `close` and `login-success` events to hide itself or perform the login action.
     -->
-    <LoginModal :show="isLoginModalVisible" @close="hideLoginModal" @login-success="login" />
+    <LoginModal 
+      :show="isLoginModalVisible" 
+      :context="loginContext" 
+      @close="hideLoginModal" 
+      @login-success="handleLoginSuccess" 
+    />
   </div>
 </template>
 
 <script setup>
 // Import necessary functions and components from Vue and other files.
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue'; // Added onMounted, onUnmounted
 import { useRoute } from 'vue-router';
 import NavBar from './components/NavBar.vue';
 import LoginModal from './components/LoginModal.vue';
 
 // --- State Management ---
-// A reactive reference to store the currently logged-in user object. null if no user is logged in.
-const user = ref(null);
 // A reactive reference to control the visibility of the login modal.
 const isLoginModalVisible = ref(false);
+const loginContext = ref('watch'); // 'watch' or 'nav'
+// A reactive reference to get a direct reference to the NavBar component instance.
+const navBarRef = ref(null);
 
 // --- Router --- 
 // Get the current route object to access information about the current page.
@@ -56,7 +60,8 @@ const isBroadcastRoom = computed(() => route.name === 'BroadcastRoom');
 
 // --- Methods ---
 // Function to set the login modal visibility to true.
-const showLoginModal = () => {
+const showLoginModal = (contextType) => {
+  loginContext.value = contextType;
   isLoginModalVisible.value = true;
 };
 
@@ -66,21 +71,44 @@ const hideLoginModal = () => {
 };
 
 // Function to handle a successful login.
-const login = () => {
-  // In a real application, this would involve a call to a backend API.
-  // Here, we simulate it by creating a mock user object.
-  user.value = {
-    name: '임시사용자',
-    profilePic: 'https://placehold.co/100x100/4F46E5/FFFFFF?text=U',
-  };
+const handleLoginSuccess = () => {
   // Hide the modal after login.
   hideLoginModal();
+  // Explicitly call checkLoginStatus on NavBar to update its UI
+  if (navBarRef.value) {
+    navBarRef.value.checkLoginStatus();
+  }
 };
 
 // Function to handle logout.
 const logout = () => {
-  // Set the user state back to null.
-  user.value = null;
+  localStorage.removeItem('accessToken');
+  localStorage.removeItem('refreshToken');
+  localStorage.removeItem('userName');
+  localStorage.removeItem('userProfileImage');
+  // Explicitly call checkLoginStatus on NavBar to update its UI
+  if (navBarRef.value) {
+    navBarRef.value.checkLoginStatus();
+  }
+};
+
+// --- Lifecycle Hooks ---
+onMounted(() => {
+  // Listen for changes in localStorage (e.g., from LoginModal)
+  window.addEventListener('storage', handleStorageChange);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('storage', handleStorageChange);
+});
+
+const handleStorageChange = (event) => {
+  // This function will be called when localStorage changes in another tab/window.
+  // For changes in the same window, components like NavBar will react via their own onMounted/checkLoginStatus.
+  // This is primarily for cross-tab/window synchronization.
+  console.log('localStorage changed:', event.key);
+  // If App.vue needs to react to localStorage changes, it can do so here.
+  // For now, we just log it. NavBar.vue already has its own listener.
 };
 </script>
 

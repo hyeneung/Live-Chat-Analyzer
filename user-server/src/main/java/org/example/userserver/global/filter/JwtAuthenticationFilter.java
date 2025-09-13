@@ -36,12 +36,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (token != null) {
             try {
                 // The getClaimsFromToken method will throw a JwtException if the token is invalid.
-                String email = jwtUtil.getEmailFromToken(token);
+                Long userId = jwtUtil.getUserIdFromToken(token);
                 String role = jwtUtil.getRoleFromToken(token);
 
                 // Create an Authentication object and set it in the SecurityContext
                 UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                        email, // Use email as the principal
+                        userId, // Use userId as the principal
                         null,  // Credentials are not needed for token-based auth
                         Collections.singleton(new SimpleGrantedAuthority(role))
                 );
