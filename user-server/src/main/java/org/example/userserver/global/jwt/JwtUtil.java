@@ -40,25 +40,24 @@ public class JwtUtil {
         secretKey = Keys.hmacShaKeyFor(Base64.getDecoder().decode(secret));
     }
 
-    public String generateAccessToken(String email, String role) {
-        return generateToken(email, role, accessTokenExpiration);
+    public String generateAccessToken(Long userId, String role) {
+        return generateToken(userId, role, accessTokenExpiration);
     }
 
-    public String generateRefreshToken(String email) {
-        return generateToken(email, null, refreshTokenExpiration);
+    public String generateRefreshToken(Long userId) {
+        return generateToken(userId, null, refreshTokenExpiration);
     }
 
-    private String generateToken(String email, String role, long expiration) {
+    private String generateToken(Long userId, String role, long expiration) {
         Date now = new Date();
         Date validity = new Date(now.getTime() + expiration);
 
         io.jsonwebtoken.JwtBuilder builder = Jwts.builder()
-                .subject(email)
+                .subject(String.valueOf(userId))
                 .issuedAt(now)
                 .expiration(validity)
                 .signWith(secretKey);
 
-        // role이 null이 아닐 경우에만 claim 추가
         if (role != null) {
             builder.claim("role", role);
         }
@@ -76,13 +75,15 @@ public class JwtUtil {
         }
     }
 
-    public String getEmailFromToken(String token) {
-        return getClaimsFromToken(token).getSubject();
+    public Long getUserIdFromToken(String token) {
+        String userIdAsString = getClaimsFromToken(token).getSubject();
+        return Long.parseLong(userIdAsString);
     }
 
     public String getRoleFromToken(String token) {
         return getClaimsFromToken(token).get("role", String.class);
     }
+
 
     public Claims getClaimsFromToken(String token) throws JwtException {
         try {
