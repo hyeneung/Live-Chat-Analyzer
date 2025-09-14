@@ -1,4 +1,3 @@
-
 <template>
   <div v-if="currentStream" class="relative h-screen w-screen overflow-hidden">
     <!-- Video Player (Background) -->
@@ -47,11 +46,13 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import api from '@/api';
 import ChatBox from '../components/ChatBox.vue';
 import ChatAnalysis from '../components/ChatAnalysis.vue';
 
 const route = useRoute();
 const router = useRouter();
+const streamId = route.params.id;
 
 const currentStream = ref(null);
 const comments = ref([]);
@@ -62,7 +63,38 @@ let commentInterval = null;
 let analysisInterval = null;
 
 const goHome = () => {
+  leaveStream();
   router.push('/');
+};
+
+let hasLeft = false;
+const leaveStream = () => {
+  if (hasLeft) return;
+  if (!streamId) return;
+
+  hasLeft = true; // Set flag immediately
+
+  const url = `${process.env.VUE_APP_BACKEND_URL}/api/v1/streams/leave`;
+  const accessToken = localStorage.getItem('accessToken');
+  const headers = {
+    'Content-Type': 'application/json',
+  };
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`;
+  }
+  const body = JSON.stringify({ streamId: streamId });
+
+  // Use fetch with keepalive flag for reliable background sending
+  try {
+    fetch(url, {
+      method: 'POST',
+      headers,
+      body,
+      keepalive: true,
+    });
+  } catch (e) {
+    console.error('Error dispatching leaveStream request:', e);
+  }
 };
 
 const toggleAnalysisVisibility = () => {
@@ -114,19 +146,21 @@ const stopStreamSimulation = () => {
 };
 
 // Mock fetching stream data based on route ID
-onMounted(() => {
-  const streamId = route.params.id;
-  currentStream.value = {
-    id: streamId,
-    title: `방송 #${streamId}: Tailwind CSS 라이브 코딩`,
-    host: { name: 'Gemini-Dev', profilePic: 'https://placehold.co/100x100/16A34A/FFFFFF?text=G' },
-    viewerCount: Math.floor(Math.random() * 500) + 50,
-  };
+onMounted(async () => {
+  try {
+    const response = await api.get(`/api/v1/streams/${streamId}`);
+    currentStream.value = response.data;
+  } catch (error) {
+    console.error('Failed to fetch stream details:', error);
+    // Optionally, redirect to an error page or show a message
+    router.push('/'); 
+  }
   startStreamSimulation();
 });
 
 onBeforeUnmount(() => {
   stopStreamSimulation();
+  leaveStream();
 });
 
 </script>

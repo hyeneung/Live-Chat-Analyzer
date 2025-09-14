@@ -1,6 +1,6 @@
 package org.example.userserver.domain.stream.dto.request;
 
-public record StreamEnterRequestDto(
+public record StreamLeaveRequestDto(
         String streamId
 ) {
 }

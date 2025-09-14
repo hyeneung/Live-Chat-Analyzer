@@ -16,6 +16,9 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.example.userserver.domain.stream.dto.response.ReadStreamResponseDto;
+import org.example.userserver.domain.stream.exception.StreamException;
+import org.example.userserver.domain.stream.exception.StreamExceptionDetails;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
@@ -100,6 +103,27 @@ public class StreamServiceImpl implements StreamService {
         }
     }
 
+    @Override
+    @Transactional
+    public void leaveStream(Long userId, String streamId) {
+        String key = USER_SET_PREFIX + streamId;
+        redisTemplate.opsForSet().remove(key, String.valueOf(userId));
+        Long userCount = redisTemplate.opsForSet().size(key);
+        if (userCount == null) {
+            userCount = 0L;
+        }
+        StreamUserCountUpdateDto dto = StreamUserCountUpdateDto.builder()
+                .streamId(streamId)
+                .userCount(userCount)
+                .build();
+        try {
+            String message = objectMapper.writeValueAsString(dto);
+            redisTemplate.convertAndSend(streamUpdateChannel, message);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Error serializing stream update DTO", e);
+        }
+    }
+
     /**
      * Creates and registers a new SSE emitter for a client to subscribe to stream updates.
      * The emitter is stored in a central list to receive broadcasted events.
@@ -122,7 +146,7 @@ public class StreamServiceImpl implements StreamService {
             this.emitters.remove(emitter);
         });
 
-        emitters.add(emitter);
+        this.emitters.add(emitter);
 
 
         try {
@@ -149,7 +173,7 @@ public class StreamServiceImpl implements StreamService {
     public void notifyUserCountUpdate(StreamUserCountUpdateDto dto) {
         // Iterate over a copy of the emitters list to avoid ConcurrentModificationException.
         List<SseEmitter> deadEmitters = new ArrayList<>();
-        emitters.forEach(emitter -> {
+        this.emitters.forEach(emitter -> {
             try {
                 // Send the update event to each client.
                 emitter.send(SseEmitter.event().name("userCountUpdate").data(dto));
@@ -161,7 +185,7 @@ public class StreamServiceImpl implements StreamService {
         });
 
         // Remove all dead emitters from the main list.
-        emitters.removeAll(deadEmitters);
+        this.emitters.removeAll(deadEmitters);
     }
 
     @Override
@@ -169,5 +193,15 @@ public class StreamServiceImpl implements StreamService {
         String key = USER_SET_PREFIX + streamId;
         Long userCount = redisTemplate.opsForSet().size(key);
         return userCount != null ? userCount : 0L;
+    }
+
+    @Override
+    public ReadStreamResponseDto readStreamInfo(Long streamId) {
+        Stream stream = streamRepository.findById(streamId)
+                .orElseThrow(() -> new StreamException(StreamExceptionDetails.STREAM_NOT_FOUND));
+
+        long viewerCount = getStreamViewerCount(String.valueOf(streamId));
+
+        return ReadStreamResponseDto.from(stream, viewerCount);
     }
 }
