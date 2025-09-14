@@ -58,11 +58,21 @@ let eventSource = null;
 
 // --- Methods ---
 // This function is called when the `join` event is received from a BroadcastCard.
-const joinBroadcast = (broadcastId) => {
+const joinBroadcast = async (broadcastId) => {
   // Check if a user is logged in.
   if (props.user) {
-    // If logged in, navigate to the corresponding room URL.
-    router.push(`/room/${broadcastId}`);
+    try {
+      // If logged in, call the API to enter the stream.
+      // The request body is { streamId: broadcastId }.
+      // The Authorization header is automatically attached by the Axios interceptor in api.js.
+      await api.post(`/api/v1/streams/enter`, { streamId: broadcastId });
+      
+      // After successfully entering, navigate to the corresponding room URL.
+      router.push(`/room/${broadcastId}`);
+    } catch (error) {
+      console.error('Error entering broadcast:', error);
+      // @TODO: Handle the error appropriately, e.g., show a notification to the user.
+    }
   } else {
     // If not logged in, emit an event to the parent (App.vue) to show the login modal.
     emit('show-login');
@@ -83,9 +93,9 @@ const updateUserCount = (update) => {
 
 const fetchBroadcasts = async () => {
   try {
-    const response = await api.get(`${process.env.VUE_APP_BACKEND_URL}/api/v1/streams`, {
+    const response = await api.get(`/api/v1/streams`, {
       params: { page: 0 },
-      skipAuth: true, // This endpoint does not require authentication
+      skipAuth: true
     });
 
     broadcasts.value = response.data.streams.map(stream => ({
@@ -106,6 +116,11 @@ const fetchBroadcasts = async () => {
 };
 
 const setupSse = () => {
+  // Prevent creating duplicate connections, e.g., during HMR in development.
+  if (eventSource) {
+    console.log('SSE connection already exists, skipping setup.');
+    return;
+  }
   // Establish an SSE connection to the backend.
   eventSource = new EventSource(`${process.env.VUE_APP_BACKEND_URL}/api/v1/streams/subscribe`);
 
@@ -130,9 +145,10 @@ const setupSse = () => {
 
 // --- Lifecycle Hooks ---
 // `onMounted` is a function that runs after the component has been inserted into the DOM.
-onMounted(() => {
-  fetchBroadcasts();
-  // Set up the Server-Sent Events connection.
+onMounted(async () => {
+  // Wait for the initial list of broadcasts to be fetched.
+  await fetchBroadcasts();
+  // Now that we have the broadcasts, set up the Server-Sent Events connection.
   setupSse();
 });
 
@@ -142,6 +158,8 @@ onBeforeUnmount(() => {
   // It closes the SSE connection when the user navigates away from this page.
   if (eventSource) {
     eventSource.close();
+    eventSource = null; // Reset the variable to allow for a new connection if the component remounts.
+    console.log('SSE connection closed.');
   }
 });
 
