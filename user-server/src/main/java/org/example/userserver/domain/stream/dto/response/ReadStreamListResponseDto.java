@@ -1,4 +1,4 @@
-package org.example.userserver.domain.stream.dto;
+package org.example.userserver.domain.stream.dto.response;
 
 import lombok.Builder;
 import lombok.NonNull;
@@ -18,21 +18,6 @@ public record ReadStreamListResponseDto(
     int pageSize
 ) {
 
-    public static ReadStreamListResponseDto from(Slice<Stream> streamSlice) {
-        List<StreamDto> streamDtos = streamSlice.getContent()
-            .stream()
-            .map(StreamDto::from)
-            .collect(Collectors.toList());
-
-        return ReadStreamListResponseDto.builder()
-            .streams(streamDtos)
-            .hasNext(streamSlice.hasNext())
-            .numberOfElements(streamSlice.getNumberOfElements())
-            .pageNumber(streamSlice.getNumber())
-            .pageSize(streamSlice.getSize())
-            .build();
-    }
-
     @Builder
     public record StreamDto(
         @NonNull Long id,
@@ -41,9 +26,10 @@ public record ReadStreamListResponseDto(
         String thumbnailUrl,
         @NonNull String hostname,
         String hostprofile,
-        @NonNull LocalDateTime createdAt
+        @NonNull LocalDateTime createdAt,
+        long viewerCount
     ) {
-        public static StreamDto from(Stream stream) {
+        public static StreamDto from(Stream stream, long viewerCount) {
             return StreamDto.builder()
                 .id(stream.getId())
                 .hostId(stream.getHost().getId())
@@ -52,6 +38,7 @@ public record ReadStreamListResponseDto(
                 .hostname(stream.getHost().getName())
                 .hostprofile(stream.getHost().getProfileImage())
                 .createdAt(stream.getCreatedAt())
+                .viewerCount(viewerCount)
                 .build();
         }
     }

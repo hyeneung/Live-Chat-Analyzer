@@ -96,11 +96,22 @@ const logout = () => {
 onMounted(() => {
   // Listen for changes in localStorage (e.g., from LoginModal)
   window.addEventListener('storage', handleStorageChange);
+  // Listen for custom event to show login modal when re-login is required
+  window.addEventListener('relogin-required', handleReloginRequired);
 });
 
 onUnmounted(() => {
   window.removeEventListener('storage', handleStorageChange);
+  // Clean up custom event listener
+  window.removeEventListener('relogin-required', handleReloginRequired);
 });
+
+const handleReloginRequired = () => {
+  showLoginModal('nav');
+  if (navBarRef.value) {
+    navBarRef.value.checkLoginStatus();
+  }
+};
 
 const handleStorageChange = (event) => {
   // This function will be called when localStorage changes in another tab/window.

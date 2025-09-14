@@ -49,10 +49,12 @@ public class SecurityConfig {
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll()
                         // Basic public paths for application and OAuth2 flow
                         .requestMatchers("/", "/oauth2/**", "/login/oauth2/**").permitAll()
+                        // actuator monitor
+                        .requestMatchers("/actuator/**").permitAll()
                         // User-specific public API endpoints
                         .requestMatchers("/api/v1/users/login/google", "/api/v1/users/reissue").permitAll()
                         // home screen api
-                        .requestMatchers("/api/v1/streams").permitAll()
+                        .requestMatchers("/api/v1/streams", "/api/v1/streams/subscribe").permitAll()
                         .anyRequest().authenticated()); // All other requests require authentication
 
         http

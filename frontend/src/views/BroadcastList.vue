@@ -2,7 +2,7 @@
   <!-- This is the main container for the Broadcast List page (the lobby). -->
   <div>
     <h2 class="text-3xl font-bold mb-6">진행중인 방송</h2>
-    
+
     <!-- 
       A responsive grid layout for the broadcast cards.
       It changes the number of columns based on the screen size (e.g., 1 on small, 2 on medium, etc.).
@@ -31,7 +31,7 @@
 import { ref, onMounted, onBeforeUnmount, defineProps, defineEmits } from 'vue';
 import { useRouter } from 'vue-router';
 import BroadcastCard from '../components/BroadcastCard.vue';
-import axios from 'axios';
+import api from '@/api';
 
 // --- Component Properties (Props) ---
 // This component receives the `user` object from its parent (App.vue via router-view).
@@ -53,8 +53,8 @@ const router = useRouter();
 // --- State Management ---
 // A reactive array to hold the list of broadcast streams.
 const broadcasts = ref([]);
-// A variable to hold the ID of the interval timer for the simulation.
-let viewerCountInterval = null;
+// A variable to hold the EventSource instance for SSE.
+let eventSource = null;
 
 // --- Methods ---
 // This function is called when the `join` event is received from a BroadcastCard.
@@ -69,10 +69,23 @@ const joinBroadcast = (broadcastId) => {
   }
 };
 
+const updateUserCount = (update) => {
+  const broadcastToUpdate = broadcasts.value.find(
+    b => String(b.id) === String(update.streamId)
+  );
+
+  if (broadcastToUpdate) {
+    broadcastToUpdate.viewerCount = update.userCount;
+  } else {
+    console.warn(`Stream with ID ${update.streamId} not found.`);
+  }
+};
+
 const fetchBroadcasts = async () => {
   try {
-    const response = await axios.get(`${process.env.VUE_APP_BACKEND_URL}/api/v1/streams`, {
-      params: { page: 0 }
+    const response = await api.get(`${process.env.VUE_APP_BACKEND_URL}/api/v1/streams`, {
+      params: { page: 0 },
+      skipAuth: true, // This endpoint does not require authentication
     });
 
     broadcasts.value = response.data.streams.map(stream => ({
@@ -83,7 +96,7 @@ const fetchBroadcasts = async () => {
         profilePic: stream.hostprofile,
       },
       thumbnailUrl: stream.thumbnailUrl,
-      viewerCount: Math.floor(Math.random() * 500) + 50, // Mock viewer count
+      viewerCount: stream.viewerCount,
       startTime: stream.createdAt,
     }));
   } catch (error) {
@@ -92,34 +105,44 @@ const fetchBroadcasts = async () => {
   }
 };
 
+const setupSse = () => {
+  // Establish an SSE connection to the backend.
+  eventSource = new EventSource(`${process.env.VUE_APP_BACKEND_URL}/api/v1/streams/subscribe`);
 
-// This function simulates real-time updates for viewer counts.
-const startLobbySimulation = () => {
-    // setInterval repeatedly calls a function with a fixed time delay between each call.
-    viewerCountInterval = setInterval(() => {
-        // For each stream, randomly change the viewer count slightly.
-        broadcasts.value.forEach(stream => {
-            if (Math.random() > 0.5) {
-                const change = Math.floor(Math.random() * 5) - 2; // -2 to +2
-                stream.viewerCount = Math.max(0, stream.viewerCount + change);
-            }
-        });
-    }, 2000); // Update every 2 seconds
+  // Handle incoming 'userCountUpdate' events.
+  eventSource.addEventListener('userCountUpdate', (event) => {
+    const update = JSON.parse(event.data);
+    console.log('sse message received:', update);
+    updateUserCount(update);
+  });
+
+  // Optional: Handle connection open and error events.
+  eventSource.onopen = () => {
+    console.log('SSE connection established.');
+  };
+
+  eventSource.onerror = (error) => {
+    console.error('SSE error:', error);
+    // The browser will automatically try to reconnect.
+  };
 };
+
 
 // --- Lifecycle Hooks ---
 // `onMounted` is a function that runs after the component has been inserted into the DOM.
 onMounted(() => {
   fetchBroadcasts();
-  // Start the real-time simulation.
-  startLobbySimulation();
+  // Set up the Server-Sent Events connection.
+  setupSse();
 });
 
 // `onBeforeUnmount` is a function that runs right before the component is removed from the DOM.
 onBeforeUnmount(() => {
   // This is important to prevent memory leaks.
-  // It stops the simulation when the user navigates away from this page.
-  clearInterval(viewerCountInterval);
+  // It closes the SSE connection when the user navigates away from this page.
+  if (eventSource) {
+    eventSource.close();
+  }
 });
 
 </script>

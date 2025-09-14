@@ -94,6 +94,9 @@ public class UserServiceImpl implements UserService {
         );
 
         // 7. Return new tokens in DTO
-        return new TokenReissueResponseDto(newAccessToken, newRefreshToken);
+        return TokenReissueResponseDto.builder()
+                .accessToken(newAccessToken)
+                .refreshToken(newRefreshToken)
+                .build();
     }
 }
