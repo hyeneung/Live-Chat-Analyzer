@@ -5,7 +5,9 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import lombok.RequiredArgsConstructor;
 import org.example.userserver.domain.stream.dto.response.ReadStreamListResponseDto;
+import org.example.userserver.domain.stream.dto.response.ReadStreamResponseDto;
 import org.example.userserver.domain.stream.dto.request.StreamEnterRequestDto;
+import org.example.userserver.domain.stream.dto.request.StreamLeaveRequestDto;
 import org.example.userserver.domain.stream.service.StreamService;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
@@ -37,6 +39,20 @@ public class StreamController {
     }
 
     @Operation(
+            summary = "Get stream information by ID",
+            description = "Retrieves detailed information for a specific stream, including viewer count."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Successfully retrieved stream information"),
+            @ApiResponse(responseCode = "404", description = "Stream not found"),
+    })
+    @GetMapping("/{streamId}")
+    public ResponseEntity<ReadStreamResponseDto> getStreamInfo(@PathVariable Long streamId) {
+        ReadStreamResponseDto streamInfo = streamService.readStreamInfo(streamId);
+        return ResponseEntity.ok(streamInfo);
+    }
+
+    @Operation(
             summary = "Enter a stream room",
             description = "Adds the user to the set of participants for a given stream."
     )
@@ -51,6 +67,24 @@ public class StreamController {
     ) {
         Long userId = Long.parseLong(authentication.getName());
         streamService.enterStream(userId, requestDto.streamId());
+        return ResponseEntity.ok().build();
+    }
+
+    @Operation(
+            summary = "Leave a stream room",
+            description = "Removes the user from the set of participants for a given stream."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Successfully left stream"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized"),
+    })
+    @PostMapping("/leave")
+    public ResponseEntity<Void> leaveStream(
+            @RequestBody StreamLeaveRequestDto requestDto,
+            Authentication authentication
+    ) {
+        Long userId = Long.parseLong(authentication.getName());
+        streamService.leaveStream(userId, requestDto.streamId());
         return ResponseEntity.ok().build();
     }
 
