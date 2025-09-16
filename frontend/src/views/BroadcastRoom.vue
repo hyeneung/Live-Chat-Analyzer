@@ -37,7 +37,7 @@
                 </button>
             </div>
         </transition>
-        <ChatBox :messages="comments" class="flex-grow min-h-0"/>
+        <ChatBox :messages="comments" @send-message="handleSendMessage" class="flex-grow min-h-0"/>
       </div>
     </div>
   </div>
@@ -47,44 +47,52 @@
 import { ref, onMounted, onBeforeUnmount } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from '@/api';
+import socket from '@/api/socket'; // Import the socket client
 import ChatBox from '../components/ChatBox.vue';
 import ChatAnalysis from '../components/ChatAnalysis.vue';
 
+// --- Vue Router and Route ---
 const route = useRoute();
 const router = useRouter();
 const streamId = route.params.id;
 
+// --- Component State ---
 const currentStream = ref(null);
-const comments = ref([]);
-const analysisData = ref({});
-const isAnalysisVisible = ref(true);
+const comments = ref([]); // Holds the list of chat messages
+const analysisData = ref({}); // Holds real-time analysis data
+const isAnalysisVisible = ref(true); // Controls visibility of the analysis component
 
-let commentInterval = null;
-let analysisInterval = null;
+// --- User Information State ---
+const userInfo = ref({
+    id: null,
+    name: 'Anonymous',
+    profileImageUrl: 'https://placehold.co/100x100/cccccc/FFFFFF?text=U'
+});
 
+// --- Navigation ---
 const goHome = () => {
   leaveStream();
   router.push('/');
 };
 
+// --- API Interaction ---
 let hasLeft = false;
+/**
+ * Sends a request to the backend to notify that the user is leaving the stream.
+ * Uses `fetch` with `keepalive` to ensure the request is sent even if the page is closing.
+ */
 const leaveStream = () => {
-  if (hasLeft) return;
-  if (!streamId) return;
-
-  hasLeft = true; // Set flag immediately
+  if (hasLeft || !streamId) return;
+  hasLeft = true;
 
   const url = `${process.env.VUE_APP_BACKEND_URL}/api/v1/streams/leave`;
   const accessToken = localStorage.getItem('accessToken');
-  const headers = {
-    'Content-Type': 'application/json',
-  };
+  const headers = { 'Content-Type': 'application/json' };
   if (accessToken) {
     headers['Authorization'] = `Bearer ${accessToken}`;
   }
   const body = JSON.stringify({ streamId: streamId });
 
-  // Use fetch with keepalive flag for reliable background sending
   try {
     fetch(url, {
       method: 'POST',
@@ -97,70 +105,97 @@ const leaveStream = () => {
   }
 };
 
+/**
+ * Toggles the visibility of the chat analysis component.
+ */
 const toggleAnalysisVisibility = () => {
     isAnalysisVisible.value = !isAnalysisVisible.value;
 }
 
-// --- Real-time Data Simulation ---
-const startStreamSimulation = () => {
-  const mockComments = [
-      { user: { name: '익명1', profilePic: 'https://placehold.co/100x100/cccccc/FFFFFF?text=1' }, text: '와 정말 유익하네요!' },
-      { user: { name: '코딩꿈나무', profilePic: 'https://placehold.co/100x100/9333EA/FFFFFF?text=코' }, text: '이 부분 다시 설명해주실 수 있나요?' },
-      { user: { name: '스트리머팬', profilePic: 'https://placehold.co/100x100/E11D48/FFFFFF?text=팬' }, text: '오늘 방송도 너무 재밌어요! 짱짱' },
-      { user: { name: '지나가던행인', profilePic: 'https://placehold.co/100x100/3B82F6/FFFFFF?text=행' }, text: '이건 좀 아닌 것 같은데...' },
-  ];
+/**
+ * Handles sending a new chat message through the WebSocket connection.
+ * Uses the pre-fetched user information.
+ * @param {string} content - The text content of the message.
+ */
+const handleSendMessage = (content) => {
+    if (!userInfo.value.id) {
+        console.error("User information not available. Cannot send message.");
+        return;
+    }
 
-  commentInterval = setInterval(() => {
-      const randomComment = mockComments[Math.floor(Math.random() * mockComments.length)];
-      comments.value.push({ id: Date.now(), ...randomComment });
-  }, 3000);
-
-  analysisInterval = setInterval(() => {
-      let pos = analysisData.value.sentiment?.positive ?? 50;
-      pos += Math.floor(Math.random() * 7) - 3;
-      pos = Math.max(10, Math.min(90, pos));
-      
-      const newCategories = {};
-      const keys = ['칭찬', '질문', '조언', '비난', '기타'];
-      let total = 100;
-      keys.forEach((key, index) => {
-          if (index === keys.length - 1) {
-              newCategories[key] = total;
-          } else {
-              const val = Math.floor(Math.random() * (total / 2));
-              newCategories[key] = val;
-              total -= val;
-          }
-      });
-
-      analysisData.value = {
-        sentiment: { positive: pos, negative: 100 - pos },
-        categories: newCategories
-      };
-  }, 2500);
+    const message = {
+        sender: {
+            id: userInfo.value.id,
+            name: userInfo.value.name,
+            profileImageUrl: userInfo.value.profileImageUrl
+        },
+        content: content,
+        streamId: streamId,
+    };
+    socket.sendMessage(`/publish/${streamId}`, message);
 };
 
-const stopStreamSimulation = () => {
-  clearInterval(commentInterval);
-  clearInterval(analysisInterval);
-};
 
-// Mock fetching stream data based on route ID
+// --- Lifecycle Hooks ---
 onMounted(async () => {
+  // Fetch initial stream details from the API
   try {
     const response = await api.get(`/api/v1/streams/${streamId}`);
     currentStream.value = response.data;
   } catch (error) {
     console.error('Failed to fetch stream details:', error);
-    // Optionally, redirect to an error page or show a message
     router.push('/'); 
+    return;
   }
-  startStreamSimulation();
+
+  // --- WebSocket Connection and User Info Parsing ---
+  const accessToken = localStorage.getItem('accessToken');
+  if (accessToken) {
+    // Parse token and local storage once
+    try {
+        const payload = JSON.parse(atob(accessToken.split('.')[1]));
+        userInfo.value.id = payload.sub;
+        userInfo.value.name = localStorage.getItem("userName") || 'Anonymous';
+        userInfo.value.profileImageUrl = localStorage.getItem("userProfileImage") || 'https://placehold.co/100x100/cccccc/FFFFFF?text=U';
+    } catch (e) {
+        console.error("Failed to decode token or get user info:", e);
+    }
+
+    socket.connect(
+      accessToken,
+      () => {
+        // On successful connection, subscribe to relevant topics
+        
+        // Subscribe to the main chat topic for this stream
+        socket.subscribe(`/topic/${streamId}/message`, (message) => {
+          // Add incoming messages to the comments array, mapping the new structure
+          comments.value.push({
+            id: Date.now() + Math.random(), // Create a unique key for the v-for
+            user: { name: message.sender.name, profilePic: message.sender.profileImageUrl },
+            text: message.content,
+          });
+        });
+
+        // // Subscribe to viewer count updates
+        // socket.subscribe(`/topic/stream/${streamId}/user-count`, (message) => {
+        //   if (currentStream.value) {
+        //     currentStream.value.viewerCount = message.userCount;
+        //   }
+        // });
+      },
+      (error) => {
+        console.error('WebSocket connection failed:', error);
+      }
+    );
+  } else {
+      console.error("Authentication token not found, WebSocket not connected.");
+  }
 });
 
 onBeforeUnmount(() => {
-  stopStreamSimulation();
+  // Clean up resources before the component is destroyed
   leaveStream();
+  socket.disconnect();
 });
 
 </script>
