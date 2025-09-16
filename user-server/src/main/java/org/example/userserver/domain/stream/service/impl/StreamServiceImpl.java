@@ -91,16 +91,7 @@ public class StreamServiceImpl implements StreamService {
         if (userCount == null) {
             userCount = 0L;
         }
-        StreamUserCountUpdateDto dto = StreamUserCountUpdateDto.builder()
-                .streamId(streamId)
-                .userCount(userCount)
-                .build();
-        try {
-            String message = objectMapper.writeValueAsString(dto);
-            redisTemplate.convertAndSend(streamUpdateChannel, message);
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException("Error serializing stream update DTO", e);
-        }
+        publishStreamUserCountUpdate(streamId, userCount);
     }
 
     @Override
@@ -112,16 +103,7 @@ public class StreamServiceImpl implements StreamService {
         if (userCount == null) {
             userCount = 0L;
         }
-        StreamUserCountUpdateDto dto = StreamUserCountUpdateDto.builder()
-                .streamId(streamId)
-                .userCount(userCount)
-                .build();
-        try {
-            String message = objectMapper.writeValueAsString(dto);
-            redisTemplate.convertAndSend(streamUpdateChannel, message);
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException("Error serializing stream update DTO", e);
-        }
+        publishStreamUserCountUpdate(streamId, userCount);
     }
 
     /**
@@ -203,5 +185,18 @@ public class StreamServiceImpl implements StreamService {
         long viewerCount = getStreamViewerCount(String.valueOf(streamId));
 
         return ReadStreamResponseDto.from(stream, viewerCount);
+    }
+
+    private void publishStreamUserCountUpdate(String streamId, Long userCount) {
+        StreamUserCountUpdateDto dto = StreamUserCountUpdateDto.builder()
+                .streamId(streamId)
+                .userCount(userCount)
+                .build();
+        try {
+            String message = objectMapper.writeValueAsString(dto);
+            redisTemplate.convertAndSend(streamUpdateChannel, message);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Error serializing stream update DTO", e);
+        }
     }
 }
