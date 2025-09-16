@@ -12,7 +12,7 @@ This project aims to build a robust system for efficiently collecting, storing, 
 * **Kubernetes-based Deployment**: All services are containerized and managed within a Kubernetes cluster for easy deployment and orchestration.
 
 ## 🚀 System Architecture
-<img width="1733" height="933" alt="image" src="https://github.com/user-attachments/assets/140b61c4-3800-47b4-842e-60c2a6263bf4" />
+<img width="1733" height="933" alt="image" src="https://github.com/user-attachments/assets/df9e945d-db4f-4892-a7e4-42431fa3d9b0" />
 
 * **user-server**:
     * **User Management**: Handles user login, registration, and authentication using JWTs.
