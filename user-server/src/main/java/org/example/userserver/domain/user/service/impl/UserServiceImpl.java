@@ -27,6 +27,8 @@ public class UserServiceImpl implements UserService {
     private final JwtUtil jwtUtil;
     private final RedisTemplate<String, String> redisTemplate;
 
+    private static final String REFRESH_TOKEN_PREFIX = "RT:";
+
     @Override
     @Transactional
     public User processOAuth2User(Map<String, Object> attributes) {
@@ -72,7 +74,7 @@ public class UserServiceImpl implements UserService {
         Long userId = jwtUtil.getUserIdFromToken(refreshToken);
 
         // 3. Verify Refresh Token against Redis
-        String storedRefreshToken = redisTemplate.opsForValue().get("RT:" + userId);
+        String storedRefreshToken = redisTemplate.opsForValue().get(REFRESH_TOKEN_PREFIX + userId);
         if (storedRefreshToken == null || !storedRefreshToken.equals(refreshToken)) {
             throw new UserException(UserExceptionDetails.REFRESH_TOKEN_MISMATCH);
         }
@@ -87,7 +89,7 @@ public class UserServiceImpl implements UserService {
 
         // 6. Store new Refresh Token in Redis
         redisTemplate.opsForValue().set(
-                "RT:" + user.getId(),
+                REFRESH_TOKEN_PREFIX + user.getId(),
                 newRefreshToken,
                 jwtUtil.getRefreshTokenExpiration(),
                 TimeUnit.MILLISECONDS
