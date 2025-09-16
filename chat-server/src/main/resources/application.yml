@@ -1,0 +1,5 @@
+spring:
+  application:
+    name: live_chat
+  profiles:
+    active: dev
