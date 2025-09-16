@@ -4,5 +4,12 @@ module.exports = defineConfig({
   transpileDependencies: true,
   devServer: {
     port: 3000, // Set the development server port to 3000
+  },
+  configureWebpack: {
+    resolve: {
+      fallback: {
+        net: false
+      }
+    }
   }
 })

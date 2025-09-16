@@ -33,7 +33,7 @@
     <!-- The input area at the bottom of the chat box. -->
     <div class="p-4 border-t border-gray-700">
       <!-- The form handles submission. `@submit.prevent` stops the default browser form submission. -->
-      <form @submit.prevent="sendMessage" class="flex gap-2">
+      <form @submit.prevent="submitMessage" class="flex gap-2">
         <!-- The text input for a new message. `v-model` creates a two-way binding with the `newMessage` state. -->
         <input v-model="newMessage" type="text" placeholder="댓글을 입력하세요..." class="flex-grow bg-gray-700 text-white rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
         <!-- The send button. -->
@@ -45,7 +45,7 @@
 
 <script setup>
 // Import necessary functions and components from Vue.
-import { ref, watch, nextTick, defineProps } from 'vue';
+import { ref, watch, nextTick, defineProps, defineEmits } from 'vue';
 
 // --- Component Properties (Props) ---
 const props = defineProps({
@@ -55,6 +55,9 @@ const props = defineProps({
     required: true,
   },
 });
+
+// --- Component Events (Emits) ---
+const emit = defineEmits(['sendMessage']);
 
 // --- State Management ---
 // A reactive reference to store the content of the new message input field.
@@ -76,12 +79,15 @@ watch(() => props.messages.length, () => {
 });
 
 // --- Methods ---
-// This function is called when the user submits the form (by clicking send or pressing Enter).
-const sendMessage = () => {
+/**
+ * Called when the user submits the form.
+ * It validates the message and emits an event to the parent component.
+ */
+const submitMessage = () => {
   // Check if the message is not just empty spaces.
   if (newMessage.value.trim() !== '') {
-    // In a real app, you would emit an event here to send the message to the server.
-    console.log('Sending message:', newMessage.value);
+    // Emit a `sendMessage` event with the message content.
+    emit('sendMessage', newMessage.value);
     // Clear the input field after sending.
     newMessage.value = '';
   }
