@@ -4,6 +4,8 @@ import org.example.chatserver.dto.ChatMessage;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
+import java.util.UUID;
+
 /**
  * Service for producing messages to Kafka topics.
  */
@@ -23,6 +25,6 @@ public class KafkaProducerService {
      * @param message The message to be sent.
      */
     public void sendMessage(String topic, ChatMessage message) {
-        kafkaTemplate.send(topic, message);
+        kafkaTemplate.send(topic, UUID.randomUUID().toString(), message);
     }
 }

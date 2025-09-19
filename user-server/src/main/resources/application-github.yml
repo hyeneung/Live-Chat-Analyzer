@@ -1,0 +1,40 @@
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/live_chat?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul
+    username: a
+    password: a
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+  data:
+    redis:
+      host: localhost
+      port: 6379
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: "a"
+            client-secret: "a"
+            scope:
+              - email
+              - profile
+
+jwt:
+  secret: "a"
+  access-token-expiration: 1
+  refresh-token-expiration: 1
+
+app:
+  redis-channel: "stream-updates"
+
+logging:
+  level:
+    org.hibernate.SQL: debug
+    org.hibernate.type.descriptor.sql.BasicBinder: trace
