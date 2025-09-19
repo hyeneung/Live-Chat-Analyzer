@@ -40,3 +40,4 @@ out/
 application-dev.yml
 application-pub.yml
 docker-compose.yml
+plugins/
