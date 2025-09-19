@@ -176,12 +176,12 @@ onMounted(async () => {
           });
         });
 
-        // // Subscribe to viewer count updates
-        // socket.subscribe(`/topic/stream/${streamId}/user-count`, (message) => {
-        //   if (currentStream.value) {
-        //     currentStream.value.viewerCount = message.userCount;
-        //   }
-        // });
+        // Subscribe to viewer count updates
+        socket.subscribe(`/topic/stream/${streamId}/user-count`, (message) => {
+          if (currentStream.value) {
+            currentStream.value.viewerCount = message.userCount;
+          }
+        });
       },
       (error) => {
         console.error('WebSocket connection failed:', error);
