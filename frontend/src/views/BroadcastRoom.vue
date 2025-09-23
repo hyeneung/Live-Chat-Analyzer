@@ -167,7 +167,7 @@ onMounted(async () => {
         // On successful connection, subscribe to relevant topics
         
         // Subscribe to the main chat topic for this stream
-        socket.subscribe(`/topic/${streamId}/message`, (message) => {
+        socket.subscribe(`/topic/stream/${streamId}/message`, (message) => {
           // Add incoming messages to the comments array, mapping the new structure
           comments.value.push({
             id: Date.now() + Math.random(), // Create a unique key for the v-for
@@ -181,6 +181,12 @@ onMounted(async () => {
           if (currentStream.value) {
             currentStream.value.viewerCount = message.userCount;
           }
+        });
+
+        // Subscribe to the real-time analysis topic
+        socket.subscribe(`/topic/stream/${streamId}/analysis`, (message) => {
+          console.log('Received analysis data:', message);
+          analysisData.value = message; // Update the analysis data state
         });
       },
       (error) => {
