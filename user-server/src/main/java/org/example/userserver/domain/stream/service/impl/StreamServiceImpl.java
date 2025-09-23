@@ -83,7 +83,7 @@ public class StreamServiceImpl implements StreamService {
      * @param streamId The ID of the stream being entered.
      */
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public void enterStream(Long userId, String streamId) {
         String key = USER_SET_PREFIX + streamId;
         redisTemplate.opsForSet().add(key, String.valueOf(userId));
@@ -95,7 +95,7 @@ public class StreamServiceImpl implements StreamService {
     }
 
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public void leaveStream(Long userId, String streamId) {
         String key = USER_SET_PREFIX + streamId;
         redisTemplate.opsForSet().remove(key, String.valueOf(userId));

@@ -32,20 +32,21 @@ instance.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    // If error is 401 and not a re-issue request itself
-    if (error.response.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true; // Mark request as retried
+    // Handle authentication errors (401)
+    // It's crucial to check for `error.response` to handle network errors where the server doesn't respond.
+    if (error.response && error.response.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true; // Mark request as retried to prevent infinite loops
 
       try {
         const refreshToken = localStorage.getItem('refreshToken');
         if (!refreshToken) {
-          // No refresh token, dispatch event to show login modal
+          // If there's no refresh token, the user needs to log in again.
           console.error('No refresh token found. Dispatching relogin-required event.');
           window.dispatchEvent(new Event('relogin-required'));
           return Promise.reject(error);
         }
 
-        // Request new access token using refresh token
+        // Attempt to get a new access token using the refresh token
         const response = await axios.post(
           `${process.env.VUE_APP_BACKEND_URL}/api/v1/users/reissue`,
           { refreshToken: refreshToken },
@@ -54,19 +55,19 @@ instance.interceptors.response.use(
 
         const { accessToken: newAccessToken, refreshToken: newRefreshToken } = response.data;
 
-        // Update tokens in localStorage
+        // Update tokens in localStorage for future requests
         localStorage.setItem('accessToken', newAccessToken);
         localStorage.setItem('refreshToken', newRefreshToken);
 
-        // Update the authorization header for the original request
+        // Update the authorization header for the original request and retry it
         instance.defaults.headers.common['Authorization'] = `Bearer ${newAccessToken}`;
         originalRequest.headers['Authorization'] = `Bearer ${newAccessToken}`;
-
-        // Retry the original request
         return instance(originalRequest);
+
       } catch (reissueError) {
         console.error('Token re-issue failed:', reissueError);
-        // Re-issue failed, clear tokens and dispatch event to show login modal
+        // If re-issuing the token fails (e.g., refresh token is also expired),
+        // clear all session data and force a re-login.
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
         localStorage.removeItem('userName');
@@ -76,6 +77,7 @@ instance.interceptors.response.use(
       }
     }
 
+    // For all other errors (including network errors), just pass them along.
     return Promise.reject(error);
   }
 );

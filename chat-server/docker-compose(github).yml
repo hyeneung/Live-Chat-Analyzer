@@ -1,4 +1,43 @@
 services:
+  # --- Flink Services ---
+  jobmanager:
+    image: flink-sentiment-env:latest
+    container_name: flink_jobmanager
+    ports:
+      - "8081:8081"
+    command: jobmanager
+    environment:
+      - JOB_MANAGER_RPC_ADDRESS=jobmanager
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/overview"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  taskmanager:
+    image: flink-sentiment-env:latest
+    container_name: flink_taskmanager
+    depends_on:
+      - jobmanager
+    command: taskmanager
+    environment:
+      - JOB_MANAGER_RPC_ADDRESS=jobmanager
+
+  sentiment_analyzer:
+    image: flink-sentiment-env:latest
+    container_name: sentiment_analyzer
+    depends_on:
+      jobmanager:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy 
+    volumes:
+      - ../flink:/app
+    entrypoint: flink
+    command: run -m jobmanager:8081 -py /app/sentiment_analyzer.py
+
+  # --- Chat Server / Data Services ---
   zookeeper:
     image: confluentinc/cp-zookeeper:7.0.1
     container_name: zookeeper
@@ -24,6 +63,11 @@ services:
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics --bootstrap-server kafka:29092 --list | grep -q 'raw-chats'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   cassandra:
     image: cassandra:4.0

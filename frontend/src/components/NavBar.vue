@@ -64,7 +64,8 @@ const logout = () => {
 const checkLoginStatus = () => {
   const userName = localStorage.getItem('userName');
   const userProfileImage = localStorage.getItem('userProfileImage');
-  if (userName && userProfileImage) {
+  const accessToken = localStorage.getItem('accessToken');
+  if (userName && userProfileImage && accessToken) {
     currentUser.value.name = userName;
     currentUser.value.profilePic = userProfileImage;
   } else {

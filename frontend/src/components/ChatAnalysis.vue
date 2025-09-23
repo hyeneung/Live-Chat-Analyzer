@@ -16,45 +16,29 @@
       </button>
     </div>
 
-    <!-- Sentiment Analysis Section -->
-    <!-- This block is only rendered if sentiment data is available. -->
-    <div v-if="analysisData.sentiment">
-      <p class="font-semibold mb-2">감정 분석</p>
-      <!-- The container for the progress bar. -->
-      <div class="w-full bg-gray-700 rounded-full h-6 flex overflow-hidden text-xs font-medium text-center">
-        <!-- Positive sentiment bar. Its width is dynamically bound to the data. -->
-        <div 
-          class="bg-blue-500 h-6 flex items-center justify-center progress-bar"
-          :style="{ width: analysisData.sentiment.positive + '%' }" 
-          title="긍정">
-          {{ analysisData.sentiment.positive }}%
+    <!-- Display analysis data if available -->
+    <div v-if="analysisData && analysisData.totalCount > 0">
+      <!-- Ratios Analysis Section -->
+      <div class="mt-4">
+        <!-- Loop through each ratio and create a progress bar for it. -->
+        <div v-for="(ratio, category) in analysisData.ratios" :key="category" class="mb-2">
+          <div class="flex justify-between mb-1">
+            <span class="text-base font-medium text-gray-300 capitalize">{{ category }}</span>
+            <span class="text-sm font-medium text-gray-400">{{ (ratio * 100).toFixed(1) }}%</span>
+          </div>
+          <!-- The container for the ratio progress bar. -->
+          <div class="w-full bg-gray-700 rounded-full h-2.5">
+            <!-- The actual progress bar. Its width is dynamically bound to the ratio value. -->
+            <div class="bg-indigo-500 h-2.5 rounded-full progress-bar" :style="{ width: (ratio * 100).toFixed(1) + '%' }"></div>
+          </div>
         </div>
-        <!-- Negative sentiment bar. -->
-        <div 
-          class="bg-red-500 h-6 flex items-center justify-center progress-bar"
-          :style="{ width: analysisData.sentiment.negative + '%' }" 
-          title="부정">
-          {{ analysisData.sentiment.negative }}%
-        </div>
+      </div>
+      <div class="flex justify-end mt-4">
+        <p class="text-sm text-gray-400">총 댓글 수: {{ analysisData.totalCount }}</p>
       </div>
     </div>
-
-    <!-- Category Analysis Section -->
-    <!-- This block is only rendered if category data is available. -->
-    <div class="mt-4" v-if="analysisData.categories">
-      <p class="font-semibold mb-2">주요 카테고리</p>
-      <!-- Loop through each category and create a progress bar for it. -->
-      <div v-for="(value, key) in analysisData.categories" :key="key" class="mb-2">
-        <div class="flex justify-between mb-1">
-          <span class="text-base font-medium text-gray-300 capitalize">{{ key }}</span>
-          <span class="text-sm font-medium text-gray-400">{{ value }}%</span>
-        </div>
-        <!-- The container for the category progress bar. -->
-        <div class="w-full bg-gray-700 rounded-full h-2.5">
-          <!-- The actual progress bar. Its width is dynamically bound to the category value. -->
-          <div class="bg-indigo-500 h-2.5 rounded-full progress-bar" :style="{ width: value + '%' }"></div>
-        </div>
-      </div>
+    <div v-else class="flex-grow flex items-center justify-center">
+      <p class="text-gray-400">분석 데이터가 없습니다.</p>
     </div>
   </div>
 </template>
