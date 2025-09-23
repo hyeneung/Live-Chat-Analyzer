@@ -31,7 +31,7 @@ services:
       jobmanager:
         condition: service_healthy
       kafka:
-        condition: service_started
+        condition: service_healthy 
     volumes:
       - ../flink:/app
     entrypoint: flink
@@ -63,6 +63,11 @@ services:
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics --bootstrap-server kafka:29092 --list | grep -q 'raw-chats'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   cassandra:
     image: cassandra:4.0

@@ -17,7 +17,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 # ----------------------------------------------------------------------------
 
 # Define labels for zero-shot classification
-CANDIDATE_LABELS = ["웃음", "감탄", "응원", "실망", "비난"]
+CANDIDATE_LABELS = ["칭찬", "비난", "웃음", "질문", "조언"]
 
 # --- Kafka Configuration ---
 BOOTSTRAP_SERVERS = "kafka:29092"
