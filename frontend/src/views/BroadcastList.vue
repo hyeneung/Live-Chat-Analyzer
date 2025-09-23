@@ -28,19 +28,10 @@
 
 <script setup>
 // Import necessary functions and components from Vue and other files.
-import { ref, onMounted, onBeforeUnmount, defineProps, defineEmits } from 'vue';
+import { ref, onMounted, onBeforeUnmount, defineEmits } from 'vue';
 import { useRouter } from 'vue-router';
 import BroadcastCard from '../components/BroadcastCard.vue';
 import api from '@/api';
-
-// --- Component Properties (Props) ---
-// This component receives the `user` object from its parent (App.vue via router-view).
-const props = defineProps({
-  user: {
-    type: Object,
-    default: null,
-  },
-});
 
 // --- Component Events (Emits) ---
 // Defines that this component can emit a `show-login` event to its parent.
@@ -59,23 +50,26 @@ let eventSource = null;
 // --- Methods ---
 // This function is called when the `join` event is received from a BroadcastCard.
 const joinBroadcast = async (broadcastId) => {
-  // Check if a user is logged in.
-  if (props.user) {
-    try {
-      // If logged in, call the API to enter the stream.
-      // The request body is { streamId: broadcastId }.
-      // The Authorization header is automatically attached by the Axios interceptor in api.js.
-      await api.post(`/api/v1/streams/enter`, { streamId: broadcastId });
-      
-      // After successfully entering, navigate to the corresponding room URL.
-      router.push(`/room/${broadcastId}`);
-    } catch (error) {
-      console.error('Error entering broadcast:', error);
-      // @TODO: Handle the error appropriately, e.g., show a notification to the user.
+  try {
+    // Optimistically attempt to enter the stream. The API call is the single source of truth for authorization.
+    // The Axios interceptor in `api.js` will handle attaching the token if it exists.
+    await api.post(`/api/v1/streams/enter`, { streamId: broadcastId });
+    
+    // If the API call is successful, the user is authorized and can enter the room.
+    router.push(`/room/${broadcastId}`);
+  } catch (error) {
+    console.error('Error entering broadcast:', error);
+
+    // An error can occur for two main auth-related reasons:
+    // 1. The server returns a 401 Unauthorized status.
+    // 2. A 'Network Error' (error.code === 'ERR_NETWORK') occurs. This often happens with CORS policies
+    //    when an unauthenticated request is made. From the user's perspective, it's an auth failure.
+    if ((error.response && error.response.status === 401) || error.code === 'ERR_NETWORK') {
+      emit('show-login');
+    } else {
+      // @TODO: Handle other errors, like the server being genuinely down, with a user-friendly notification.
+      console.error('An unexpected error occurred:', error);
     }
-  } else {
-    // If not logged in, emit an event to the parent (App.vue) to show the login modal.
-    emit('show-login');
   }
 };
 
