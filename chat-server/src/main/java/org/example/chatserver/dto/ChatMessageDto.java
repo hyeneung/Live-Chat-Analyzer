@@ -7,7 +7,7 @@ package org.example.chatserver.dto;
  * @param content  The text content of the message.
  * @param streamId The ID of the stream or chat room.
  */
-public record ChatMessage(
+public record ChatMessageDto(
         SenderInfo sender,
         String content,
         String streamId

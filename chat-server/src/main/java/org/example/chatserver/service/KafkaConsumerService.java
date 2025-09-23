@@ -1,8 +1,8 @@
 package org.example.chatserver.service;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.example.chatserver.config.WebSocketConstants;
-import org.example.chatserver.dto.ChatMessage;
+import org.example.chatserver.dto.AnalysisResultDto;
+import org.example.chatserver.dto.ChatMessageDto;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
@@ -25,10 +25,10 @@ public class KafkaConsumerService {
      * Once a message is received, it is forwarded to the appropriate WebSocket topic based on the streamId.
      * @param message The chat message received from Kafka, which includes analysis results.
      */
-    @KafkaListener(topics = "${kafka.topic.analysis-result}", groupId = "${spring.kafka.consumer.group-id}")
-    public void listenAnalysisResult(ChatMessage message) {
+    @KafkaListener(topics = "${kafka.topic.analysis-result}", groupId = "${spring.kafka.consumer.group-id}", containerFactory = "analysisResultListenerContainerFactory")
+    public void listenAnalysisResult(AnalysisResultDto message) {
         // Construct the WebSocket topic destination dynamically using the streamId.
-        String destination = WebSocketConstants.TOPIC_PREFIX + "/" + message.streamId() + "/message";
+        String destination = WebSocketConstants.TOPIC_PREFIX + "/stream/" + message.streamId() + "/analysis";
         // Send the message to all subscribers of the destination.
         messagingTemplate.convertAndSend(destination, message);
     }
@@ -40,8 +40,8 @@ public class KafkaConsumerService {
      * @param message The raw chat message received from Kafka.
      */
     @KafkaListener(topics = "${kafka.topic.raw-chats}", groupId = "${spring.kafka.consumer.group-id}")
-    public void listenRawChats(ChatMessage message) {
-        String destination = WebSocketConstants.TOPIC_PREFIX + "/" + message.streamId() + "/message";
+    public void listenRawChats(ChatMessageDto message) {
+        String destination = WebSocketConstants.TOPIC_PREFIX + "/stream/" + message.streamId() + "/message";
         messagingTemplate.convertAndSend(destination, message);
     }
 }

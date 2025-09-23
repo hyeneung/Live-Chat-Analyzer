@@ -1,6 +1,6 @@
 package org.example.chatserver.service;
 
-import org.example.chatserver.dto.ChatMessage;
+import org.example.chatserver.dto.ChatMessageDto;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
@@ -13,9 +13,9 @@ import java.util.UUID;
 public class KafkaProducerService {
 
     // KafkaTemplate provides a high-level abstraction for sending messages.
-    private final KafkaTemplate<String, ChatMessage> kafkaTemplate;
+    private final KafkaTemplate<String, ChatMessageDto> kafkaTemplate;
 
-    public KafkaProducerService(KafkaTemplate<String, ChatMessage> kafkaTemplate) {
+    public KafkaProducerService(KafkaTemplate<String, ChatMessageDto> kafkaTemplate) {
         this.kafkaTemplate = kafkaTemplate;
     }
 
@@ -24,7 +24,7 @@ public class KafkaProducerService {
      * @param topic The name of the Kafka topic.
      * @param message The message to be sent.
      */
-    public void sendMessage(String topic, ChatMessage message) {
+    public void sendMessage(String topic, ChatMessageDto message) {
         kafkaTemplate.send(topic, UUID.randomUUID().toString(), message);
     }
 }
