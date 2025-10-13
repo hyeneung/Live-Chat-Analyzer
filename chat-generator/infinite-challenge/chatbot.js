@@ -2,15 +2,14 @@ import 'dotenv/config';
 import SockJS from 'sockjs-client';
 import Stomp from 'stompjs';
 import jwt from 'jsonwebtoken';
-import { google } from 'googleapis';
 import fs from 'fs/promises';
 
 // --- ⚙️ Configuration ---
 const SECRET_KEY = process.env.SECRET_KEY;
 const YOUTUBE_VIDEO_ID = process.env.YOUTUBE_VIDEO_ID;
-const CHATBOT_USER_ID = "0";
-const ROOM_ID = "1";
-const WEBSOCKET_URL = `http://localhost:8090/ws`;
+const CHATBOT_USER_ID = "2";
+const ROOM_ID = "2";
+const WEBSOCKET_URL = process.env.WEBSOCKET_URL;
 
 // --- 🌐 Global State ---
 let stompClient = null;
@@ -106,7 +105,8 @@ function generateToken() {
         sub: CHATBOT_USER_ID,
         exp: Math.floor(Date.now() / 1000) + (60 * 60)
     };
-    return jwt.sign(payload, SECRET_KEY, { algorithm: 'HS256' });
+    const decodedSecret = Buffer.from(SECRET_KEY, 'base64');
+    return jwt.sign(payload, decodedSecret, { algorithm: 'HS256' });
 }
 
 function sendCommentToServer(youtubeMessage, client) {
@@ -181,4 +181,4 @@ function onError(error) {
 // --- ▶️ Main Execution ---
 console.log(`--- YouTube Chat Replayer from File ---`);
 // Pass true to actually send to the server, or false (or leave empty) to just print to the console.
-connect(false);
+connect(true);
