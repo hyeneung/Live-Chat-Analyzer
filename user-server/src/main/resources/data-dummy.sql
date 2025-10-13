@@ -3,7 +3,7 @@ VALUES
     (NOW(), NOW(), 'streamer@example.com', '게임스트리머', 'https://placehold.co/100x100/7E22CE/FFFFFF?text=G', 'USER'),
     (NOW(), NOW(), 'music_creator@example.com', '뮤직크리에이터', 'https://placehold.co/100x100/DB2777/FFFFFF?text=M', 'USER'),
     (NOW(), NOW(), 'vlogger@example.com', '일상브이로거', 'https://placehold.co/100x100/16A34A/FFFFFF?text=V', 'USER'),
-    (NOW(), NOW(), 'it_expert@example.com', 'IT전문가', 'https://placehold.co/100x100/D97706/FFFFFF?text=IT', 'USER'),
+    (NOW(), NOW(), 'it_expert@example.com', '쇼핑 호스트', 'https://placehold.co/100x100/D97706/FFFFFF?text=IT', 'USER'),
     (NOW(), NOW(), 'master_chef@example.com', '요리왕', 'https://placehold.co/100x100/DC2626/FFFFFF?text=C', 'USER'),
     (NOW(), NOW(), 'programmer@example.com', '프로그래머', 'https://placehold.co/100x100/0284C7/FFFFFF?text=P', 'USER'),
     (NOW(), NOW(), 'fitness_guru@example.com', '피트니스코치', 'https://placehold.co/100x100/F59E0B/FFFFFF?text=F', 'USER'),
@@ -45,9 +45,9 @@ VALUES
 INSERT INTO stream (created_at, modified_at, title, host_id, thumbnail_url)
 VALUES
     -- IT전문가 (id: 4), 방송 1
-    (NOW(), NOW(), 'Vue.js 3 완벽 마스터하기', 4, 'https://placehold.co/600x400/1F2937/FFFFFF?text=방송+1'),
+    (NOW(), NOW(), '[쇼핑] FW 베스트 아이템전', 4, 'https://static.lookpin.co.kr/20240911081430-f158/c16323210ef04514b991bdd782b5f2b3.jpg'),
     -- 요리왕 (id: 5), 방송 2
-    (NOW(), NOW(), '오늘 밤은 치킨 먹방!', 5, 'https://placehold.co/600x400/1F2937/FFFFFF?text=방송+2'),
+    (NOW(), NOW(), '무한도전 레전드 특집 다시보기', 5, 'https://i.ytimg.com/vi/IDAw0V5MaSg/maxresdefault.jpg'),
     -- 뮤직크리에이터 (id: 2), 방송 3
     (NOW(), NOW(), '여러분의 고민을 들어드려요', 2, 'https://placehold.co/600x400/1F2937/FFFFFF?text=방송+3'),
     -- 게임스트리머 (id: 1), 방송 4
