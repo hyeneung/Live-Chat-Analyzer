@@ -185,8 +185,15 @@ onMounted(async () => {
 
         // Subscribe to the real-time analysis topic
         socket.subscribe(`/topic/stream/${streamId}/analysis`, (message) => {
-          console.log('Received analysis data:', message);
+          // console.log('Received analysis data:', message);
           analysisData.value = message; // Update the analysis data state
+        });
+
+        // Subscribe to the real-time summary topic
+        socket.subscribe(`/topic/stream/${streamId}/summary`, (message) => {
+          console.log('Received summary data:', message);
+          // You might want to store this in a ref similar to analysisData
+          // For now, just logging to console as requested
         });
       },
       (error) => {
