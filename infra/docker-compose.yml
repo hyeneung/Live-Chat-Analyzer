@@ -1,0 +1,230 @@
+services:
+  # --- Flink Services ---
+  jobmanager:
+    image: flink-sentiment-env:latest
+    container_name: flink_jobmanager
+    ports:
+      - "8081:8081"
+    command: jobmanager
+    environment:
+      - JOB_MANAGER_RPC_ADDRESS=jobmanager
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/overview"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  taskmanager:
+    image: flink-sentiment-env:latest
+    container_name: flink_taskmanager
+    depends_on:
+      - jobmanager
+    command: taskmanager
+    environment:
+      - JOB_MANAGER_RPC_ADDRESS=jobmanager
+
+  sentiment_analyzer:
+    image: flink-sentiment-env:latest
+    container_name: sentiment_analyzer
+    depends_on:
+      jobmanager:
+        condition: service_healthy
+    volumes:
+      - ./flink:/app
+    entrypoint: flink
+    command: run -m jobmanager:8081 -py /app/sentiment_analyzer.py
+
+  # --- Chat Server / Data Services ---
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.0.1
+    container_name: zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+
+  kafka:
+    image: confluentinc/cp-kafka:7.0.1
+    container_name: kafka
+    ports:
+      - "9092:9092"
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,PLAINTEXT_HOST://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+
+  kafka-init:
+    image: confluentinc/cp-kafka:7.0.1
+    container_name: kafka-init
+    depends_on:
+      kafka:
+        condition: service_started
+    entrypoint: [ '/bin/sh', '-c' ]
+    command: |
+      "
+      sleep 10
+      
+      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic raw-chats --partitions 1 --replication-factor 1
+      
+      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic analysis-result --partitions 1 --replication-factor 1
+      
+      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic summary-requests --partitions 1 --replication-factor 1
+      
+      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic summary-results --partitions 1 --replication-factor 1
+      "
+
+  cassandra:
+    image: cassandra:4.0
+    container_name: cassandra
+    ports:
+      - "9042:9042"
+    environment:
+      - "MAX_HEAP_SIZE=256M"
+      - "HEAP_NEWSIZE=128M"
+    volumes:
+      - cassandra_data:/var/lib/cassandra
+    healthcheck:
+      test: ["CMD", "cqlsh", "-e", "describe keyspaces"]
+      interval: 5s
+      timeout: 10s
+      retries: 20
+
+  cassandra-init:
+    image: cassandra:4.0
+    container_name: cassandra-init
+    depends_on:
+      cassandra:
+        condition: service_healthy
+    volumes:
+      - ./cassandra/init-cassandra.sh:/scripts/init-cassandra.sh
+      - ./cassandra/schema.cql:/scripts/schema.cql
+    command: ["sh", "/scripts/init-cassandra.sh"]
+
+  connect-init:
+    image: curlimages/curl:8.4.0
+    container_name: connect-init
+    depends_on:
+      - kafka-connect
+    volumes:
+      - ./cassandra/init-connect.sh:/scripts/init-connect.sh
+      - ./cassandra/cassandra-sink-config.json:/config/cassandra-sink-config.json
+    command: ["sh", "/scripts/init-connect.sh"]
+
+  kafka-connect:
+    image: confluentinc/cp-kafka-connect:7.0.1
+    container_name: kafka-connect
+    ports:
+      - "8083:8083"
+    depends_on:
+      kafka:
+        condition: service_started
+      cassandra:
+        condition: service_healthy
+    volumes:
+      - ./cassandra/cassandra-sink:/usr/share/confluent-hub-components/datastax-cassandra-sink
+    environment:
+      CONNECT_BOOTSTRAP_SERVERS: "kafka:29092"
+      CONNECT_REST_ADVERTISED_HOST_NAME: kafka-connect
+      CONNECT_REST_PORT: 8083
+      CONNECT_GROUP_ID: "connect-cluster"
+      CONNECT_CONFIG_STORAGE_TOPIC: "connect-configs"
+      CONNECT_OFFSET_STORAGE_TOPIC: "connect-offsets"
+      CONNECT_STATUS_STORAGE_TOPIC: "connect-status"
+      CONNECT_KEY_CONVERTER: "org.apache.kafka.connect.json.JsonConverter"
+      CONNECT_VALUE_CONVERTER: "org.apache.kafka.connect.json.JsonConverter"
+      CONNECT_INTERNAL_KEY_CONVERTER: "org.apache.kafka.connect.json.JsonConverter"
+      CONNECT_INTERNAL_VALUE_CONVERTER: "org.apache.kafka.connect.json.JsonConverter"
+      CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: "1"
+      CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: "1"
+      CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: "1"
+      CONNECT_PLUGIN_PATH: "/usr/share/java,/usr/share/confluent-hub-components"
+
+  # spark
+  spark-master:
+    image: spark-summarizer:latest
+    container_name: spark-master
+    ports:
+      - "8082:8080"
+      - "7077:7077"
+    environment:
+      - SPARK_RPC_AUTHENTICATION_ENABLED=false
+      - SPARK_RPC_ENCRYPTION_ENABLED=false
+      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=false
+      - SPARK_SSL_ENABLED=false
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master
+
+  spark-worker:
+    image: spark-summarizer:latest
+    container_name: spark-worker
+    depends_on:
+      - spark-master
+    ports:
+      - "8091:8091"
+    environment:
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_WORKER_MEMORY=1G
+      - SPARK_WORKER_CORES=1
+      - SPARK_RPC_AUTHENTICATION_ENABLED=false
+      - SPARK_RPC_ENCRYPTION_ENABLED=false
+      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=false
+      - SPARK_SSL_ENABLED=false
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
+
+  spark-submit:
+    image: spark-summarizer:latest
+    container_name: spark-submit
+    depends_on:
+      - spark-master
+      - kafka
+      - cassandra
+    environment:
+      - SPARK_RPC_AUTHENTICATION_ENABLED=false
+      - SPARK_RPC_ENCRYPTION_ENABLED=false
+      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=false
+      - SPARK_SSL_ENABLED=false
+    volumes:
+      - ./spark:/app
+    command: >
+      spark-submit
+      --master spark://spark-master:7077
+      --packages com.datastax.spark:spark-cassandra-connector_2.12:3.5.0,org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0
+      /app/summarizer.py
+
+
+  # user-server
+  mysql:
+    image: mysql:8.0
+    container_name: mysql_boot
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: a
+      MYSQL_DATABASE: live_chat
+      MYSQL_USER: user
+      MYSQL_PASSWORD: a
+    volumes:
+      - mysql_data:/var/lib/mysql
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+
+  redis:
+    image: redis:latest
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+volumes:
+  cassandra_data:
+  mysql_data:
+  redis_data:
