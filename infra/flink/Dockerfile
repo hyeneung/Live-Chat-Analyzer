@@ -1,3 +1,4 @@
+# # docker build --no-cache -t flink-sentiment-env:latest .
 # 1. Use an official Flink image as a base
 FROM flink:1.17.1-scala_2.12-java11
 
