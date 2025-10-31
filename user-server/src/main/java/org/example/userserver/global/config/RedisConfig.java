@@ -6,8 +6,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
+
 import org.springframework.data.redis.listener.ChannelTopic;
 import org.springframework.data.redis.listener.RedisMessageListenerContainer;
+import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 /**
  * Configuration class for Redis Pub/Sub.
@@ -21,6 +23,7 @@ public class RedisConfig {
 
     @Value("${app.redis-channel}")
     private String streamUpdateChannel;
+
 
     /**
      * Creates and configures the container for Redis message listeners.

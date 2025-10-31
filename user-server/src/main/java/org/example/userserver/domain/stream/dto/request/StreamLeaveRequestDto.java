@@ -1,6 +1,7 @@
 package org.example.userserver.domain.stream.dto.request;
 
 public record StreamLeaveRequestDto(
-        String streamId
-) {
-}
+
+        Long streamId
+
+) {}
