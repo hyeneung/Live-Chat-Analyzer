@@ -3,8 +3,8 @@ import asyncio
 import os
 import openai
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, from_json, length, to_json, struct
-from pyspark.sql.types import StructType, StructField, StringType
+from pyspark.sql.functions import col, from_json, length, to_json, struct, udf
+from pyspark.sql.types import StructType, StructField, StringType, BooleanType
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -80,6 +80,17 @@ def summarize_partition(iterator):
         
     return iter(results)
 
+def is_repeated_char(s):
+    """
+    Checks if a string consists of a single character repeated.
+    e.g., 'aaaa', 'bbbbb', 'ㅋㅋㅋㅋ'
+    """
+    if not s or len(s) <= 1:
+        return False
+    return s == s[0] * len(s)
+
+is_repeated_char_udf = udf(is_repeated_char, BooleanType())
+
 def process_batch(df, epoch_id):
     stream_ids = [row.streamId for row in df.collect()]
     if not stream_ids:
@@ -116,7 +127,7 @@ def process_batch(df, epoch_id):
 
     # Preprocessing / Filtering
     preprocessed_df = repartitioned_df.filter(length(col("content")) >= 5)
-    preprocessed_df = preprocessed_df.filter(~col("content").rlike(r"^(.)\\1+$"))
+    preprocessed_df = preprocessed_df.filter(~is_repeated_char_udf(col("content")))
 
     # Summarize using mapPartitions
     summaries_rdd = preprocessed_df.rdd.mapPartitions(summarize_partition)
