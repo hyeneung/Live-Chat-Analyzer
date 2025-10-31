@@ -48,6 +48,7 @@ public class StreamServiceImpl implements StreamService {
     private final List<SseEmitter> emitters = new CopyOnWriteArrayList<>();
 
     private static final String USER_SET_PREFIX = "stream:users:";
+    private static final String SUMMARY_PREFIX = "summary:";
 
     /**
      * Retrieves a paginated list of all available streams.
@@ -183,8 +184,9 @@ public class StreamServiceImpl implements StreamService {
                 .orElseThrow(() -> new StreamException(StreamExceptionDetails.STREAM_NOT_FOUND));
 
         long viewerCount = getStreamViewerCount(String.valueOf(streamId));
+        String summary = redisTemplate.opsForValue().get(SUMMARY_PREFIX + streamId);
 
-        return ReadStreamResponseDto.from(stream, viewerCount);
+        return ReadStreamResponseDto.from(stream, viewerCount, summary);
     }
 
     private void publishStreamUserCountUpdate(String streamId, Long userCount) {

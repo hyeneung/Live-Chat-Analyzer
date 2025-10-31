@@ -37,6 +37,27 @@
                 </button>
             </div>
         </transition>
+
+        <!-- Chat Summary -->
+        <transition name="fade">
+            <div v-if="isSummaryVisible && summaryData.summary" class="bg-gray-800 bg-opacity-70 p-4 rounded-lg backdrop-blur-sm">
+                <div class="flex justify-between items-center mb-2">
+                    <h3 class="text-white font-bold">채팅 요약</h3>
+                    <button @click="toggleSummaryVisibility" class="text-gray-400 hover:text-white transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+                </div>
+                <p class="text-gray-300 text-sm">{{ summaryData.summary }}</p>
+            </div>
+            <div v-else-if="!isSummaryVisible && summaryData.summary">
+                <button @click="toggleSummaryVisibility" class="bg-gray-800 bg-opacity-70 hover:bg-opacity-90 text-white font-bold py-2 px-4 rounded-lg transition duration-300 backdrop-blur-sm">
+                    채팅 요약 보기
+                </button>
+            </div>
+        </transition>
+
         <ChatBox :messages="comments" @send-message="handleSendMessage" class="flex-grow min-h-0"/>
       </div>
     </div>
@@ -60,7 +81,11 @@ const streamId = route.params.id;
 const currentStream = ref(null);
 const comments = ref([]); // Holds the list of chat messages
 const analysisData = ref({}); // Holds real-time analysis data
+const summaryData = ref({
+    summary: ""
+});
 const isAnalysisVisible = ref(true); // Controls visibility of the analysis component
+const isSummaryVisible = ref(true); // Controls visibility of the summary component
 
 // --- User Information State ---
 const userInfo = ref({
@@ -113,6 +138,13 @@ const toggleAnalysisVisibility = () => {
 }
 
 /**
+ * Toggles the visibility of the chat summary component.
+ */
+const toggleSummaryVisibility = () => {
+    isSummaryVisible.value = !isSummaryVisible.value;
+}
+
+/**
  * Handles sending a new chat message through the WebSocket connection.
  * Uses the pre-fetched user information.
  * @param {string} content - The text content of the message.
@@ -142,6 +174,11 @@ onMounted(async () => {
   try {
     const response = await api.get(`/api/v1/streams/${streamId}`);
     currentStream.value = response.data;
+    if (response.data.summary) {
+        summaryData.value.summary = response.data.summary;
+    } else {
+        summaryData.value.summary = "채팅 수가 부족하여 요약 정보를 제공할 수 없습니다.";
+    }
   } catch (error) {
     console.error('Failed to fetch stream details:', error);
     router.push('/'); 
@@ -192,8 +229,7 @@ onMounted(async () => {
         // Subscribe to the real-time summary topic
         socket.subscribe(`/topic/stream/${streamId}/summary`, (message) => {
           console.log('Received summary data:', message);
-          // You might want to store this in a ref similar to analysisData
-          // For now, just logging to console as requested
+          summaryData.value = message;
         });
       },
       (error) => {
