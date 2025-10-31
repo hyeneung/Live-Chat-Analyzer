@@ -25,3 +25,4 @@ kafka:
   topic:
     raw-chats: "raw-chats"
     analysis-result: "analysis-result"
+    summary-results: "summary-results"

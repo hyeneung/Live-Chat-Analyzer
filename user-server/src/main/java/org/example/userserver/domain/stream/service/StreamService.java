@@ -9,15 +9,15 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 public interface StreamService {
     ReadStreamListResponseDto getAllStreams(Pageable pageable);
 
-    void enterStream(Long userId, String streamId);
+    void enterStream(Long userId, Long streamId);
 
-    void leaveStream(Long userId, String streamId);
+    void leaveStream(Long userId, Long streamId);
 
     SseEmitter subscribe();
 
     void notifyUserCountUpdate(StreamUserCountUpdateDto dto);
 
-    long getStreamViewerCount(String streamId);
+    long getStreamViewerCount(Long streamId);
 
     ReadStreamResponseDto readStreamInfo(Long streamId);
 }

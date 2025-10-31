@@ -48,6 +48,7 @@ public class StreamServiceImpl implements StreamService {
     private final List<SseEmitter> emitters = new CopyOnWriteArrayList<>();
 
     private static final String USER_SET_PREFIX = "stream:users:";
+    private static final String SUMMARY_PREFIX = "summary:";
 
     /**
      * Retrieves a paginated list of all available streams.
@@ -61,7 +62,7 @@ public class StreamServiceImpl implements StreamService {
         List<ReadStreamListResponseDto.StreamDto> streamDtos = streams.getContent()
             .stream()
             .map(stream -> {
-                long viewerCount = getStreamViewerCount(String.valueOf(stream.getId()));
+                long viewerCount = getStreamViewerCount(stream.getId());
                 return ReadStreamListResponseDto.StreamDto.from(stream, viewerCount);
             }).toList();
 
@@ -84,7 +85,7 @@ public class StreamServiceImpl implements StreamService {
      */
     @Override
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
-    public void enterStream(Long userId, String streamId) {
+    public void enterStream(Long userId, Long streamId) {
         String key = USER_SET_PREFIX + streamId;
         redisTemplate.opsForSet().add(key, String.valueOf(userId));
         Long userCount = redisTemplate.opsForSet().size(key);
@@ -96,7 +97,7 @@ public class StreamServiceImpl implements StreamService {
 
     @Override
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
-    public void leaveStream(Long userId, String streamId) {
+    public void leaveStream(Long userId, Long streamId) {
         String key = USER_SET_PREFIX + streamId;
         redisTemplate.opsForSet().remove(key, String.valueOf(userId));
         Long userCount = redisTemplate.opsForSet().size(key);
@@ -171,7 +172,7 @@ public class StreamServiceImpl implements StreamService {
     }
 
     @Override
-    public long getStreamViewerCount(String streamId) {
+    public long getStreamViewerCount(Long streamId) {
         String key = USER_SET_PREFIX + streamId;
         Long userCount = redisTemplate.opsForSet().size(key);
         return userCount != null ? userCount : 0L;
@@ -182,14 +183,15 @@ public class StreamServiceImpl implements StreamService {
         Stream stream = streamRepository.findById(streamId)
                 .orElseThrow(() -> new StreamException(StreamExceptionDetails.STREAM_NOT_FOUND));
 
-        long viewerCount = getStreamViewerCount(String.valueOf(streamId));
+        long viewerCount = getStreamViewerCount(streamId);
+        String summary = redisTemplate.opsForValue().get(SUMMARY_PREFIX + streamId);
 
-        return ReadStreamResponseDto.from(stream, viewerCount);
+        return ReadStreamResponseDto.from(stream, viewerCount, summary);
     }
 
-    private void publishStreamUserCountUpdate(String streamId, Long userCount) {
+    private void publishStreamUserCountUpdate(Long streamId, Long userCount) {
         StreamUserCountUpdateDto dto = StreamUserCountUpdateDto.builder()
-                .streamId(streamId)
+                .streamId(String.valueOf(streamId))
                 .userCount(userCount)
                 .build();
         try {

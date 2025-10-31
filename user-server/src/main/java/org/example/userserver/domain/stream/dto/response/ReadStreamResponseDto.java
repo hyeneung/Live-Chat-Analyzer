@@ -9,7 +9,8 @@ public record ReadStreamResponseDto(
         @NonNull Long id,
         @NonNull String title,
         @NonNull HostDto host,
-        long viewerCount
+        long viewerCount,
+        String summary
 ) {
     @Builder
     public record HostDto(
@@ -17,7 +18,7 @@ public record ReadStreamResponseDto(
             String profilePic
     ) {}
 
-    public static ReadStreamResponseDto from(Stream stream, long viewerCount) {
+    public static ReadStreamResponseDto from(Stream stream, long viewerCount, String summary) {
         return ReadStreamResponseDto.builder()
                 .id(stream.getId())
                 .title(stream.getTitle())
@@ -26,6 +27,7 @@ public record ReadStreamResponseDto(
                         .profilePic(stream.getHost().getProfileImage())
                         .build())
                 .viewerCount(viewerCount)
+                .summary(summary)
                 .build();
     }
 }

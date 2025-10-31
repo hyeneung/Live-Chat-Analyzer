@@ -4,6 +4,7 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.example.chatserver.dto.AnalysisResultDto;
 import org.example.chatserver.dto.ChatMessageDto;
+import org.example.chatserver.dto.SummaryResultDto;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -68,6 +69,29 @@ public class KafkaConsumerConfig {
     public ConcurrentKafkaListenerContainerFactory<String, AnalysisResultDto> analysisResultListenerContainerFactory() {
         ConcurrentKafkaListenerContainerFactory<String, AnalysisResultDto> factory = new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(analysisResultConsumerFactory());
+        return factory;
+    }
+    //</editor-fold>
+
+    //<editor-fold desc="Custom Consumer Config for SummaryResultDto">
+    @Bean
+    public ConsumerFactory<String, SummaryResultDto> summaryResultConsumerFactory() {
+        Map<String, Object> props = new HashMap<>();
+        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        props.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
+
+        // Custom JsonDeserializer for SummaryResultDto (ignores type headers)
+        JsonDeserializer<SummaryResultDto> deserializer = new JsonDeserializer<>(SummaryResultDto.class);
+        deserializer.setUseTypeHeaders(false); // Do not look for type info in headers
+        deserializer.addTrustedPackages("org.example.chatserver.dto");
+
+        return new DefaultKafkaConsumerFactory<>(props, new StringDeserializer(), deserializer);
+    }
+
+    @Bean
+    public ConcurrentKafkaListenerContainerFactory<String, SummaryResultDto> summaryResultListenerContainerFactory() {
+        ConcurrentKafkaListenerContainerFactory<String, SummaryResultDto> factory = new ConcurrentKafkaListenerContainerFactory<>();
+        factory.setConsumerFactory(summaryResultConsumerFactory());
         return factory;
     }
     //</editor-fold>
