@@ -1,5 +1,7 @@
 import logging
 import asyncio
+import os
+import openai
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, from_json, length, to_json, struct
 from pyspark.sql.types import StructType, StructField, StringType
@@ -18,11 +20,38 @@ NUM_PARTITIONS = 4
 
 spark = None
 
+# Initialize OpenAI client
+openai.api_key = os.environ.get("OPENAI_API_KEY")
+
 async def get_summary_from_gpt(text):
-    """Placeholder for GPT API call."""
-    logging.info("Calling GPT API (mock) for text starting with: %s", text[:50])
-    await asyncio.sleep(1) # Simulate network latency
-    return f"This is a summary of: {text[:100]}..."
+    """Calls the OpenAI API to get a summary of the given text."""
+    logging.info("Calling OpenAI API for text starting with: %s", text[:50])
+    if not openai.api_key:
+        logging.error("OPENAI_API_KEY environment variable not set.")
+        return "Error: OpenAI API key not configured."
+    try:
+        loop = asyncio.get_running_loop()
+        response = await loop.run_in_executor(
+            None,  # Use the default executor
+            lambda: openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": "You are a helpful assistant that summarizes chat messages from a live stream in Korean."},
+                    {"role": "user", "content": f"Please summarize the following chat messages in one or two sentences in Korean:\n\n{text}"}
+                ],
+                temperature=0.7,
+                max_tokens=150,
+                top_p=1.0,
+                frequency_penalty=0.0,
+                presence_penalty=0.0,
+            )
+        )
+        summary = response.choices[0].message.content.strip()
+        logging.info("Successfully received summary from OpenAI API.")
+        return summary
+    except Exception as e:
+        logging.error("Error calling OpenAI API: %s", e)
+        return f"Error: Could not generate summary. Details: {e}"
 
 def summarize_partition(iterator):
     rows = list(iterator)
