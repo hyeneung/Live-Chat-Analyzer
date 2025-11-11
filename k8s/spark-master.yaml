@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spark-master
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: spark-master
+  template:
+    metadata:
+      labels:
+        app: spark-master
+    spec:
+      containers:
+        - name: spark-master
+          image: hyeneung/spark-summarizer:latest
+          imagePullPolicy: Always
+          command: ["/opt/spark/bin/spark-class"]
+          args: ["org.apache.spark.deploy.master.Master"]
+          ports:
+            - containerPort: 8080 # Spark UI
+            - containerPort: 7077 # Spark RPC
+          env:
+            - name: SPARK_RPC_AUTHENTICATION_ENABLED
+              value: "false"
+            - name: SPARK_RPC_ENCRYPTION_ENABLED
+              value: "false"
+            - name: SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED
+              value: "false"
+            - name: SPARK_SSL_ENABLED
+              value: "false"
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: spark-openai-secret
+                  key: OPENAI_API_KEY
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: spark-master-service
+spec:
+  selector:
+    app: spark-master
+  ports:
+    - name: web
+      protocol: TCP
+      port: 8080
+      targetPort: 8080
+    - name: rpc
+      protocol: TCP
+      port: 7077
+      targetPort: 7077

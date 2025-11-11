@@ -1,0 +1,37 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: spark-summarizer-job
+spec:
+  template:
+    spec:
+      containers:
+        - name: spark-summarizer
+          image: hyeneung/spark-summarizer:latest
+          imagePullPolicy: Always
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              /opt/spark/bin/spark-submit \
+              --master spark://spark-master-service:7077 \
+              --deploy-mode client \
+              --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0,com.datastax.spark:spark-cassandra-connector_2.12:3.5.0 \
+              --conf spark.driver.host=$SPARK_DRIVER_POD_IP \
+              --conf spark.cassandra.auth.username=cassandra \
+              --conf spark.cassandra.auth.password=cassandra \
+              --conf spark.kubernetes.executor.secretKeyRef.OPENAI_API_KEY.secretName=spark-openai-secret \
+              --conf spark.kubernetes.executor.secretKeyRef.OPENAI_API_KEY.key=OPENAI_API_KEY \
+              /app/summarizer.py
+          env:
+            - name: SPARK_DRIVER_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: "kafka-controller-headless:9092" # Kafka service address
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: spark-openai-secret
+                  key: OPENAI_API_KEY # Corrected key name to match the secret
+      restartPolicy: OnFailure

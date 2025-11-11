@@ -1,0 +1,38 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: flink-sentiment-analyzer-job
+spec:
+  template:
+    spec:
+      containers:
+        - name: flink-sentiment-analyzer
+          image: hyeneung/flink-sentiment-analyzer:latest
+          imagePullPolicy: Always
+          command: ["/opt/flink/bin/flink"] # Use the flink client
+          args:
+            - "run" # Use 'run' action
+            - "-d" # Detached mode
+            - "-py"
+            - "/app/sentiment_analyzer.py" # Path to the Python script inside the image
+            - "-m"
+            - "flink-jobmanager-service:8081" # Address of the Flink JobManager
+
+
+          securityContext:
+            runAsUser: 0 # Run as root to bypass user lookup issues
+          env:
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: "kafka-controller-headless:9092" # Kafka service address
+            - name: FLINK_JOB_MANAGER_RPC_ADDRESS
+              value: "flink-jobmanager-service"
+            - name: FLINK_HOME
+              value: "/opt/flink" # Explicitly set FLINK_HOME
+            - name: FLINK_CLASSPATH
+              value: "/opt/flink/lib/flink-connector-kafka-3.1.0-1.17.jar"
+            - name: FLINK_PROPERTIES_BLOB_SERVER_PORT
+              value: "6123"
+
+
+
+      restartPolicy: OnFailure

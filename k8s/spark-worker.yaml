@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spark-worker
+spec:
+  replicas: 1 # Adjust as needed
+  selector:
+    matchLabels:
+      app: spark-worker
+  template:
+    metadata:
+      labels:
+        app: spark-worker
+    spec:
+      containers:
+        - name: spark-worker
+          image: hyeneung/spark-summarizer:latest
+          imagePullPolicy: Always
+          command: ["/opt/spark/bin/spark-class"]
+          args: ["org.apache.spark.deploy.worker.Worker", "spark://spark-master-service:7077"]
+          ports:
+            - containerPort: 8081 # Worker UI (optional, can be dynamic)
+          env:
+            - name: SPARK_MASTER_URL
+              value: "spark://spark-master-service:7077"
+            - name: SPARK_WORKER_MEMORY
+              value: "1G"
+            - name: SPARK_WORKER_CORES
+              value: "1"
+            - name: SPARK_RPC_AUTHENTICATION_ENABLED
+              value: "false"
+            - name: SPARK_RPC_ENCRYPTION_ENABLED
+              value: "false"
+            - name: SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED
+              value: "false"
+            - name: SPARK_SSL_ENABLED
+              value: "false"
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: spark-openai-secret
+                  key: OPENAI_API_KEY
