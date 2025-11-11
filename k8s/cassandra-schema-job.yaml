@@ -1,0 +1,35 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: cassandra-schema-init
+spec:
+  template:
+    spec:
+      containers:
+        - name: schema-init
+          image: bitnamilegacy/cassandra:4.1.3
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              echo "Waiting for Cassandra to be ready..."
+              until cqlsh -u cassandra -p "$CASSANDRA_PASSWORD" --request-timeout 10 cassandra-client-service -e "describe keyspaces" > /dev/null 2>&1; do
+                echo "Waiting for connection..."
+                sleep 5
+              done
+              echo "Applying schema..."
+              cqlsh -u cassandra -p "$CASSANDRA_PASSWORD" -f /schema/init.cql cassandra-client-service
+              echo "Schema applied."
+          env:
+            - name: CASSANDRA_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: cassandra
+                  key: cassandra-password
+          volumeMounts:
+            - name: cassandra-init-schema-volume
+              mountPath: /schema
+      restartPolicy: OnFailure
+      volumes:
+        - name: cassandra-init-schema-volume
+          configMap:
+            name: cassandra-init-schema

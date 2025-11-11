@@ -4,7 +4,7 @@ FROM apache/spark:3.5.0
 USER root
 
 COPY requirements.txt /app/
-# COPY summarizer.py /app/
+COPY summarizer.py /app/
 
 WORKDIR /app
 

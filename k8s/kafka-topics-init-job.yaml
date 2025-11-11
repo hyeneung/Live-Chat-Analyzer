@@ -1,0 +1,37 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kafka-topics-init-job
+spec:
+  template:
+    spec:
+      containers:
+        - name: kafka-topic-creator
+          image: confluentinc/cp-kafka:7.0.1 # Use a Kafka client image
+          command: ["sh", "-c"]
+          args:
+            - |
+              echo "Debugging network connectivity to Kafka..."
+              ping -c 3 kafka-controller-headless
+              nc -z -v -w 5 kafka-controller-headless 9092
+              echo "Network debugging complete."
+
+              echo "Waiting for Kafka to be ready..."
+              # Wait for Kafka broker to be available
+              until kafka-topics --bootstrap-server kafka-controller-headless:9092 --list; do
+                echo "Kafka not ready, retrying in 5 seconds..."
+                sleep 5
+              done
+              echo "Kafka is ready."
+
+              echo "Creating Kafka topics..."
+              # Create summary-requests topic
+              kafka-topics --bootstrap-server kafka-controller-headless:9092 --create --if-not-exists --topic summary-requests --partitions 1 --replication-factor 1
+              # Create summary-results topic
+              kafka-topics --bootstrap-server kafka-controller-headless:9092 --create --if-not-exists --topic summary-results --partitions 1 --replication-factor 1
+              # Create raw-chats topic
+              kafka-topics --bootstrap-server kafka-controller-headless:9092 --create --if-not-exists --topic raw-chats --partitions 1 --replication-factor 1
+              # Create analysis-result topic
+              kafka-topics --bootstrap-server kafka-controller-headless:9092 --create --if-not-exists --topic analysis-result --partitions 1 --replication-factor 1
+              echo "Kafka topics created."
+      restartPolicy: OnFailure

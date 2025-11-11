@@ -10,13 +10,13 @@ from pyspark.sql.types import StructType, StructField, StringType, BooleanType
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Kafka and Cassandra Configuration
-BOOTSTRAP_SERVERS = "kafka:29092"
+BOOTSTRAP_SERVERS = "kafka-controller-headless:9092"
 SUMMARY_REQUEST_TOPIC = "summary-requests"
 SUMMARY_RESULTS_TOPIC = "summary-results"
-CASSANDRA_HOST = "cassandra"
+CASSANDRA_HOST = "cassandra-client-service"
 CASSANDRA_KEYSPACE = "chat_data"
 CASSANDRA_TABLE = "messages"
-NUM_PARTITIONS = 4
+NUM_PARTITIONS = 2
 
 spark = None
 

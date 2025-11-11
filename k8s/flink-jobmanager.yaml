@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flink-jobmanager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: flink-jobmanager
+  template:
+    metadata:
+      labels:
+        app: flink-jobmanager
+    spec:
+      containers:
+        - name: flink-jobmanager
+          image: hyeneung/flink-sentiment-analyzer:latest
+          imagePullPolicy: Always
+          command: ["/docker-entrypoint.sh"]
+          args: ["jobmanager"] # Only pass "jobmanager" as an argument to the entrypoint
+          ports:
+            - containerPort: 8081 # Web UI
+            - containerPort: 6123 # RPC port
+          env:
+            - name: JOB_MANAGER_RPC_ADDRESS
+              value: "flink-jobmanager-service"
+            - name: FLINK_PROPERTIES_web.port
+              value: "8081" # Set web.port via Flink properties environment variable
+            - name: FLINK_PROPERTIES_BLOB_SERVER_PORT
+              value: "6124"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: flink-jobmanager-service
+spec:
+  selector:
+    app: flink-jobmanager
+  ports:
+    - name: web
+      protocol: TCP
+      port: 8081
+      targetPort: 8081
+    - name: rpc
+      protocol: TCP
+      port: 6123
+      targetPort: 6123
+    - name: blob
+      protocol: TCP
+      port: 6124
+      targetPort: 6124

@@ -37,7 +37,7 @@ public class JwtUtil {
 
     @PostConstruct
     protected void init() {
-        secretKey = Keys.hmacShaKeyFor(Base64.getDecoder().decode(secret));
+        secretKey = Keys.hmacShaKeyFor(Base64.getUrlDecoder().decode(secret));
     }
 
     public String generateAccessToken(Long userId, String role) {

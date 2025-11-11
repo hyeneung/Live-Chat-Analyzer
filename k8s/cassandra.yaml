@@ -1,0 +1,79 @@
+# Headless service for internal peer discovery
+apiVersion: v1
+kind: Service
+metadata:
+  name: cassandra-service
+spec:
+  clusterIP: None # This makes the service "headless"
+  selector:
+    app: cassandra
+  ports:
+    - port: 9042
+      name: cql
+
+---
+# Service for clients (e.g., chat-server) to connect to the cluster
+apiVersion: v1
+kind: Service
+metadata:
+  name: cassandra-client-service
+spec:
+  selector:
+    app: cassandra
+  ports:
+    - port: 9042
+      targetPort: 9042
+      name: cql
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: cassandra
+spec:
+  serviceName: cassandra-service
+  replicas: 1 # Start with one replica for simplicity
+  selector:
+    matchLabels:
+      app: cassandra
+  template:
+    metadata:
+      labels:
+        app: cassandra
+    spec:
+      containers:
+        - name: cassandra
+          image: bitnamilegacy/cassandra:4.1.3
+          ports:
+            - containerPort: 9042
+              name: cql
+          env:
+            - name: CASSANDRA_CLUSTER_NAME
+              value: "MyCluster"
+            - name: CASSANDRA_DC
+              value: "DC1"
+            - name: CASSANDRA_RACK
+              value: "Rack1"
+            - name: MAX_HEAP_SIZE
+              value: "1024M"
+            - name: HEAP_NEWSIZE
+              value: "128M"
+          volumeMounts:
+            - name: cassandra-data
+              mountPath: /var/lib/cassandra
+          resources:
+            requests:
+              memory: "2Gi"
+              cpu: "1"
+            limits:
+              memory: "4Gi"
+              cpu: "2"
+
+  volumeClaimTemplates:
+    - metadata:
+        name: cassandra-data
+      spec:
+        accessModes: ["ReadWriteOnce"] # Can be mounted by a single node
+        resources:
+          requests:
+            storage: 1Gi # Request 1 GB of storage

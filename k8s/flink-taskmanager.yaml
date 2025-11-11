@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flink-taskmanager
+spec:
+  replicas: 1 # Adjust as needed
+  selector:
+    matchLabels:
+      app: flink-taskmanager
+  template:
+    metadata:
+      labels:
+        app: flink-taskmanager
+    spec:
+      containers:
+        - name: flink-taskmanager
+          image: hyeneung/flink-sentiment-analyzer:latest
+          imagePullPolicy: Always
+          command: ["/docker-entrypoint.sh"]
+          args: ["taskmanager"] # Pass "taskmanager" as an argument to the entrypoint
+          env:
+            - name: JOB_MANAGER_RPC_ADDRESS
+              value: "flink-jobmanager-service"
+            - name: FLINK_PROPERTIES_BLOB_SERVER_PORT
+              value: "6124"

@@ -1,0 +1,117 @@
+# Generic
+*.log
+*.class
+*.jar
+*.war
+*.zip
+*.tar
+*.gz
+*.rar
+*.7z
+*.bak
+*.tmp
+*.swp
+.DS_Store
+*.env
+*.env.local
+*.env.*.local
+
+HELP.md
+.gradle
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+bin/
+!**/src/main/**/bin/
+!**/src/test/**/bin/
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+out/
+!**/src/main/**/out/
+!**/src/test/**/out/
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+### VS Code ###
+.vscode/
+
+# Java/Gradle
+/target/
+/build/
+.gradle/
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+HELP.md
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+bin/
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+plugins/
+# Exclusions for build/out/bin within src directories (handled by general rules now)
+# !**/src/main/**/build/
+# !**/src/test/**/build/
+# !**/src/main/**/out/
+# !**/src/test/**/out/
+# !**/src/main/**/bin/
+# !**/src/test/**/bin/
+
+# Node.js
+node_modules/
+package-lock.json
+yarn.lock
+/dist/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Kubernetes Secrets
+k8s/spark-secrets.yaml
+
+# Application-specific ignored files
+chat-generator/infinite-challenge/chat-history-**
+chat-generator/naver-shopping/chat-history-**
+
+# IDE specific
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Custom additions
+# docker-compose.yml
+application-*.yml
+secrets.yaml

@@ -1,0 +1,27 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kafka-connect-init-job
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: init-connector
+          image: curlimages/curl:8.4.0 # Or any image with curl
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-c"]
+          args: ["/scripts/init-connect.sh"]
+          volumeMounts:
+            - name: init-connect-script-volume
+              mountPath: /scripts
+            - name: cassandra-sink-config-volume
+              mountPath: /config
+      volumes:
+        - name: init-connect-script-volume
+          configMap:
+            name: init-connect-script
+            defaultMode: 0777 # Make script executable
+        - name: cassandra-sink-config-volume
+          configMap:
+            name: cassandra-sink-config

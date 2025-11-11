@@ -1,4 +1,4 @@
-INSERT INTO users (created_at, modified_at, email, name, profile_image, role)
+INSERT IGNORE INTO users (created_at, modified_at, email, name, profile_image, role)
 VALUES
     (NOW(), NOW(), 'streamer@example.com', '게임스트리머', 'https://placehold.co/100x100/7E22CE/FFFFFF?text=G', 'USER'),
     (NOW(), NOW(), 'music_creator@example.com', '뮤직크리에이터', 'https://placehold.co/100x100/DB2777/FFFFFF?text=M', 'USER'),
