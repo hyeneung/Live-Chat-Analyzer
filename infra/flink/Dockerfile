@@ -23,6 +23,9 @@ COPY requirements.txt .
 # This layer will be cached. It only re-runs if requirements.txt changes.
 RUN pip3 install --no-cache-dir -r requirements.txt
 
+# Copy the Flink Python script
+COPY sentiment_analyzer.py /app/sentiment_analyzer.py
+
 # Copy custom jars from the local 'lib' directory to Flink's lib directory
 COPY ./lib /opt/flink/lib/
 
