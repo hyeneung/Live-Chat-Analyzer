@@ -22,7 +22,6 @@ spark = None
 
 # Initialize OpenAI client
 openai.api_key = os.environ.get("OPENAI_API_KEY")
-logging.info(f"OPENAI_API_KEY length: {len(os.environ.get('OPENAI_API_KEY')) if os.environ.get('OPENAI_API_KEY') else 'None'}")
 
 async def get_summary_from_gpt(text):
     """Calls the OpenAI API to get a summary of the given text."""

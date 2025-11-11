@@ -8,9 +8,6 @@ RUN chmod +x gradlew
 COPY build.gradle settings.gradle /app/
 # Copy dependencies first to leverage Docker cache
 # RUN gradle dependencies
-COPY build.gradle settings.gradle /app/
-# Copy dependencies first to leverage Docker cache
-# RUN gradle dependencies
 COPY src /app/src
 RUN ./gradlew build -x test
 
