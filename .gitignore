@@ -112,5 +112,6 @@ chat-generator/naver-shopping/chat-history-**
 *.sw?
 
 # Custom additions
-docker-compose.yml
+# docker-compose.yml
 application-*.yml
+secrets.yaml

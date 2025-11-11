@@ -1,0 +1,138 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: user-server-config
+data:
+  application.yml: |
+    spring:
+      application:
+        name: live_chat
+      profiles:
+        active: pub
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: chat-server-config
+data:
+  application.yml: |
+    server:
+      port: 8090
+    spring:
+      application:
+        name: live_chat
+      data:
+        redis:
+          host: redis-master
+          port: 6379
+      kafka:
+        bootstrap-servers: kafka-controller-headless:9092
+        consumer:
+          group-id: chat-group-${random.uuid}
+        producer:
+          key-serializer: org.apache.kafka.common.serialization.StringSerializer
+          value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
+    # custom
+    app:
+      redis-channel: "stream-updates"
+
+    kafka:
+      topic:
+        raw-chats: "raw-chats"
+        analysis-result: "analysis-result"
+        summary-results: "summary-results"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cassandra-init-schema
+data:
+  init.cql: |
+    CREATE KEYSPACE IF NOT EXISTS chat_data
+        WITH replication = {'class': 'SimpleStrategy', 'replication_factor': '1'};
+
+    USE chat_data;
+
+    CREATE TABLE IF NOT EXISTS messages (
+        id UUID,
+        stream_id TEXT,
+        sender_id TEXT,
+        sender_name TEXT,
+        sender_profile_image_url TEXT,
+        content TEXT,
+        created_at TIMESTAMP,
+        PRIMARY KEY (stream_id, created_at, id)
+    ) WITH CLUSTERING ORDER BY (created_at DESC, id ASC);
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cassandra-sink-config
+data:
+  cassandra-sink-config.json: |
+    {
+      "name": "cassandra-sink-connector",
+      "config": {
+        "connector.class": "com.datastax.oss.kafka.sink.CassandraSinkConnector",
+        "tasks.max": "1",
+        "topics": "raw-chats",
+        "contactPoints": "cassandra-client-service",
+        "loadBalancing.localDc": "datacenter1",
+        "keyspace": "chat_data",
+        "table": "messages",
+
+        "auth.provider": "PLAIN",
+        "auth.username": "cassandra",
+        "auth.password": "cassandra",
+
+        "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+        "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+        "value.converter.schemas.enable": "false",
+
+        "transforms": "Flatten,AddTimestamp,FormatTimestamp",
+
+        "transforms.Flatten.type": "org.apache.kafka.connect.transforms.Flatten$Value",
+        "transforms.Flatten.delimiter": "_",
+
+        "transforms.AddTimestamp.type": "org.apache.kafka.connect.transforms.InsertField$Value",
+        "transforms.AddTimestamp.timestamp.field": "created_at",
+
+        "transforms.FormatTimestamp.type": "org.apache.kafka.connect.transforms.TimestampConverter$Value",
+        "transforms.FormatTimestamp.target.type": "string",
+        "transforms.FormatTimestamp.field": "created_at",
+        "transforms.FormatTimestamp.format": "yyyy-MM-dd HH:mm:ss.SSS",
+
+        "topic.raw-chats.chat_data.messages.mapping": "id=key, stream_id=value.streamId, sender_id=value.sender_id, sender_name=value.sender_name, sender_profile_image_url=value.sender_profileImageUrl, content=value.content, created_at=value.created_at",
+        "topic.raw-chats.chat_data.messages.consistencyLevel": "LOCAL_QUORUM"
+      }
+    }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: init-connect-script
+data:
+  init-connect.sh: |
+    #!/bin/sh
+
+    # Wait for Kafka Connect to be ready
+    echo "Waiting for Kafka Connect to start..."
+    until [ "$(curl -s -o /dev/null -w '%{http_code}' http://kafka-connect-service:8083/connectors)" = "200" ]; do
+      echo "Kafka Connect is not ready yet. Retrying in 5 seconds..."
+      sleep 5
+    done
+
+    echo "Kafka Connect is ready."
+
+    # Check if the connector already exists
+    STATUS_CODE=$(curl -s -o /dev/null -w '%{http_code}' http://kafka-connect-service:8083/connectors/cassandra-sink-connector)
+
+    if [ "$STATUS_CODE" = "200" ]; then
+      echo "Connector 'cassandra-sink-connector' already exists. Skipping creation."
+    else
+      echo "Connector 'cassandra-sink-connector' does not exist. Creating..."
+      # Create the connector
+      curl -X POST -H "Content-Type: application/json" --data @/config/cassandra-sink-config.json http://kafka-connect-service:8083/connectors
+      echo "\nConnector creation command sent."
+    fi
