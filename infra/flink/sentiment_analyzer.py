@@ -20,7 +20,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 CANDIDATE_LABELS = ["칭찬", "비난", "웃음", "질문", "조언"]
 
 # --- Kafka Configuration ---
-BOOTSTRAP_SERVERS = "kafka:29092"
+BOOTSTRAP_SERVERS = "kafka-controller-headless:9092"
 SOURCE_TOPIC = "raw-chats"
 SINK_TOPIC = "analysis-result"
 SUMMARY_REQUEST_TOPIC = "summary-requests" # New topic for summary requests

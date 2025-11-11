@@ -10,18 +10,19 @@ from pyspark.sql.types import StructType, StructField, StringType, BooleanType
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Kafka and Cassandra Configuration
-BOOTSTRAP_SERVERS = "kafka:29092"
+BOOTSTRAP_SERVERS = "kafka-controller-headless:9092"
 SUMMARY_REQUEST_TOPIC = "summary-requests"
 SUMMARY_RESULTS_TOPIC = "summary-results"
-CASSANDRA_HOST = "cassandra"
+CASSANDRA_HOST = "cassandra-client-service"
 CASSANDRA_KEYSPACE = "chat_data"
 CASSANDRA_TABLE = "messages"
-NUM_PARTITIONS = 4
+NUM_PARTITIONS = 2
 
 spark = None
 
 # Initialize OpenAI client
 openai.api_key = os.environ.get("OPENAI_API_KEY")
+logging.info(f"OPENAI_API_KEY length: {len(os.environ.get('OPENAI_API_KEY')) if os.environ.get('OPENAI_API_KEY') else 'None'}")
 
 async def get_summary_from_gpt(text):
     """Calls the OpenAI API to get a summary of the given text."""
