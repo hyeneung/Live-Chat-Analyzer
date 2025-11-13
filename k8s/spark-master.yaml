@@ -11,6 +11,13 @@ spec:
     metadata:
       labels:
         app: spark-master
+      annotations:
+        prometheus.io/scrape: 'true'
+        prometheus.io/path: '/metrics/prometheus' # Spark Prometheus metrics path
+        prometheus.io/port: '8080' # Spark UI and Prometheus metrics port
+        prometheus.io/scrape_custom: 'true'
+        prometheus.io/path_custom: '/metrics' # Custom Prometheus metrics path
+        prometheus.io/port_custom: '8000' # Custom Prometheus metrics port
     spec:
       containers:
         - name: spark-master
@@ -19,8 +26,9 @@ spec:
           command: ["/opt/spark/bin/spark-class"]
           args: ["org.apache.spark.deploy.master.Master"]
           ports:
-            - containerPort: 8080 # Spark UI
+            - containerPort: 8080 # Spark UI and Prometheus metrics
             - containerPort: 7077 # Spark RPC
+            - containerPort: 8000 # Custom Prometheus metrics
           env:
             - name: SPARK_RPC_AUTHENTICATION_ENABLED
               value: "false"
@@ -35,6 +43,18 @@ spec:
                 secretKeyRef:
                   name: spark-openai-secret
                   key: OPENAI_API_KEY
+            # Prometheus Metrics Configuration
+            - name: SPARK_METRICS_CONF
+              value: |
+                master.sink.prometheusServlet.class=org.apache.spark.metrics.sink.PrometheusServlet
+                master.sink.prometheusServlet.path=/metrics/prometheus
+                master.sink.prometheusServlet.port=8080
+                worker.sink.prometheusServlet.class=org.apache.spark.metrics.sink.PrometheusServlet
+                worker.sink.prometheusServlet.path=/metrics/prometheus
+                worker.sink.prometheusServlet.port=8081
+                applications.sink.prometheusServlet.class=org.apache.spark.metrics.sink.PrometheusServlet
+                applications.sink.prometheusServlet.path=/metrics/prometheus
+                applications.sink.prometheusServlet.port=8080
 ---
 apiVersion: v1
 kind: Service

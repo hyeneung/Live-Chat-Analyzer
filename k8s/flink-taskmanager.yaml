@@ -11,6 +11,10 @@ spec:
     metadata:
       labels:
         app: flink-taskmanager
+      annotations:
+        prometheus.io/scrape: 'true'
+        prometheus.io/path: '/metrics' # Prometheus reporter default path
+        prometheus.io/port: '9200' # Flink Prometheus reporter port
     spec:
       containers:
         - name: flink-taskmanager
@@ -18,8 +22,14 @@ spec:
           imagePullPolicy: Always
           command: ["/docker-entrypoint.sh"]
           args: ["taskmanager"] # Pass "taskmanager" as an argument to the entrypoint
+          ports:
+            - containerPort: 9200 # Prometheus metrics port
           env:
             - name: JOB_MANAGER_RPC_ADDRESS
               value: "flink-jobmanager-service"
             - name: FLINK_PROPERTIES_BLOB_SERVER_PORT
               value: "6124"
+            - name: FLINK_PROPERTIES_METRICS_REPORTER_PROM_CLASS
+              value: "org.apache.flink.metrics.prometheus.PrometheusReporter"
+            - name: FLINK_PROPERTIES_METRICS_REPORTER_PROM_PORT
+              value: "9200"

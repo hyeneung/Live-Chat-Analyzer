@@ -15,8 +15,7 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 @Configuration
 public class RedisConfig {
 
-    @Value("${app.redis-channel}")
-    private String channelName;
+    public static final String CHANNEL_NAME = "stream-updates";
 
     @Bean
     public RedisMessageListenerContainer redisMessageListenerContainer(
@@ -24,7 +23,7 @@ public class RedisConfig {
             MessageListenerAdapter listenerAdapter) {
         RedisMessageListenerContainer container = new RedisMessageListenerContainer();
         container.setConnectionFactory(connectionFactory);
-        container.addMessageListener(listenerAdapter, new ChannelTopic(channelName));
+        container.addMessageListener(listenerAdapter, new ChannelTopic(CHANNEL_NAME));
         return container;
     }
 
