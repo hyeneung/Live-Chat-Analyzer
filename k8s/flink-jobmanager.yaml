@@ -11,23 +11,32 @@ spec:
     metadata:
       labels:
         app: flink-jobmanager
+      annotations:
+        prometheus.io/scrape: 'true'
+        prometheus.io/path: '/metrics' # Prometheus reporter default path
+        prometheus.io/port: '9200' # Flink Prometheus reporter port
     spec:
       containers:
         - name: flink-jobmanager
           image: hyeneung/flink-sentiment-analyzer:latest
           imagePullPolicy: Always
           command: ["/docker-entrypoint.sh"]
-          args: ["jobmanager"] # Only pass "jobmanager" as an argument to the entrypoint
+          args: ["jobmanager"]
           ports:
             - containerPort: 8081 # Web UI
             - containerPort: 6123 # RPC port
+            - containerPort: 9200 # Prometheus metrics port
           env:
             - name: JOB_MANAGER_RPC_ADDRESS
               value: "flink-jobmanager-service"
             - name: FLINK_PROPERTIES_web.port
-              value: "8081" # Set web.port via Flink properties environment variable
+              value: "8081"
             - name: FLINK_PROPERTIES_BLOB_SERVER_PORT
               value: "6124"
+            - name: FLINK_PROPERTIES_METRICS_REPORTER_PROM_CLASS
+              value: "org.apache.flink.metrics.prometheus.PrometheusReporter"
+            - name: FLINK_PROPERTIES_METRICS_REPORTER_PROM_PORT
+              value: "9200"
 ---
 apiVersion: v1
 kind: Service
@@ -49,3 +58,7 @@ spec:
       protocol: TCP
       port: 6124
       targetPort: 6124
+    - name: metrics
+      protocol: TCP
+      port: 9200
+      targetPort: 9200

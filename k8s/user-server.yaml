@@ -25,6 +25,10 @@ spec:
     metadata:
       labels:
         app: user-server
+      annotations:
+        prometheus.io/scrape: 'true'
+        prometheus.io/path: '/actuator/prometheus'
+        prometheus.io/port: '8080'
     spec:
       containers:
         - name: user-server
@@ -53,6 +57,19 @@ spec:
           volumeMounts:
             - name: config-volume
               mountPath: /app/config
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 20
       volumes:
         - name: config-volume
           configMap:

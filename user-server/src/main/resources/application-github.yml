@@ -31,6 +31,15 @@ jwt:
   access-token-expiration: 1
   refresh-token-expiration: 1
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "prometheus"
+  metrics:
+    tags:
+      application: user-server
+
 app:
   redis-channel: "stream-updates"
 

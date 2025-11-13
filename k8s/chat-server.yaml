@@ -25,6 +25,10 @@ spec:
     metadata:
       labels:
         app: chat-server
+      annotations:
+        prometheus.io/scrape: 'true'
+        prometheus.io/path: '/actuator/prometheus'
+        prometheus.io/port: '8090'
     spec:
       containers:
         - name: chat-server
@@ -48,6 +52,19 @@ spec:
           volumeMounts:
             - name: config-volume
               mountPath: /app/config
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8090
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8090
+            initialDelaySeconds: 60
+            periodSeconds: 20
       volumes:
         - name: config-volume
           configMap:
