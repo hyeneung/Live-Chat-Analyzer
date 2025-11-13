@@ -14,7 +14,10 @@ spec:
       annotations:
         prometheus.io/scrape: 'true'
         prometheus.io/path: '/metrics/prometheus' # Spark Prometheus metrics path
-        prometheus.io/port: '8080,8000' # Spark UI and Prometheus metrics port, plus custom metrics port
+        prometheus.io/port: '8080' # Spark UI and Prometheus metrics port
+        prometheus.io/scrape_custom: 'true'
+        prometheus.io/path_custom: '/metrics' # Custom Prometheus metrics path
+        prometheus.io/port_custom: '8000' # Custom Prometheus metrics port
     spec:
       containers:
         - name: spark-master

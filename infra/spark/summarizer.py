@@ -6,7 +6,6 @@ from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, from_json, length, to_json, struct, udf
 from pyspark.sql.types import StructType, StructField, StringType, BooleanType
 from prometheus_client import start_http_server, Summary
-import time
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
