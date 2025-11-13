@@ -5,6 +5,8 @@ import openai
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, from_json, length, to_json, struct, udf
 from pyspark.sql.types import StructType, StructField, StringType, BooleanType
+from prometheus_client import start_http_server, Summary
+import time
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -23,6 +25,10 @@ spark = None
 # Initialize OpenAI client
 openai.api_key = os.environ.get("OPENAI_API_KEY")
 
+# Prometheus Metrics
+CASSANDRA_QUERY_LATENCY = Summary('spark_cassandra_query_latency_seconds', 'Time spent querying Cassandra for chat messages')
+OPENAI_API_LATENCY = Summary('spark_openai_api_latency_seconds', 'Time spent calling OpenAI API for summary generation')
+
 async def get_summary_from_gpt(text):
     """Calls the OpenAI API to get a summary of the given text."""
     logging.info("Calling OpenAI API for text starting with: %s", text[:50])
@@ -30,22 +36,23 @@ async def get_summary_from_gpt(text):
         logging.error("OPENAI_API_KEY environment variable not set.")
         return "Error: OpenAI API key not configured."
     try:
-        loop = asyncio.get_running_loop()
-        response = await loop.run_in_executor(
-            None,  # Use the default executor
-            lambda: openai.ChatCompletion.create(
-                model="gpt-3.5-turbo",
-                messages=[
-                    {"role": "system", "content": "You are a helpful assistant that summarizes chat messages from a live stream in Korean."},
-                    {"role": "user", "content": f"Please summarize the following chat messages in one or two sentences in Korean:\n\n{text}"}
-                ],
-                temperature=0.7,
-                max_tokens=150,
-                top_p=1.0,
-                frequency_penalty=0.0,
-                presence_penalty=0.0,
+        with OPENAI_API_LATENCY.time(): # Measure time for OpenAI API call
+            loop = asyncio.get_running_loop()
+            response = await loop.run_in_executor(
+                None,  # Use the default executor
+                lambda: openai.ChatCompletion.create(
+                    model="gpt-3.5-turbo",
+                    messages=[
+                        {"role": "system", "content": "You are a helpful assistant that summarizes chat messages from a live stream in Korean."},
+                        {"role": "user", "content": f"Please summarize the following chat messages in one or two sentences in Korean:\n\n{text}"}
+                    ],
+                    temperature=0.7,
+                    max_tokens=150,
+                    top_p=1.0,
+                    frequency_penalty=0.0,
+                    presence_penalty=0.0,
+                )
             )
-        )
         summary = response.choices[0].message.content.strip()
         logging.info("Successfully received summary from OpenAI API.")
         return summary
@@ -108,7 +115,8 @@ def process_batch(df, epoch_id):
     for stream_id in stream_ids:
         # Read from Cassandra for each stream_id.
         # The new schema sorts by created_at DESC, so limit(300) gets the latest.
-        cassandra_df = base_cassandra_df.load().where(col("stream_id") == stream_id).limit(300)
+        with CASSANDRA_QUERY_LATENCY.time(): # Measure time for Cassandra query
+            cassandra_df = base_cassandra_df.load().where(col("stream_id") == stream_id).limit(300)
         
         if all_chats_df is None:
             all_chats_df = cassandra_df
@@ -157,6 +165,10 @@ def main():
         .appName("ChatSummarizer") \
         .config("spark.cassandra.connection.host", CASSANDRA_HOST) \
         .getOrCreate()
+
+    # Start Prometheus HTTP server
+    start_http_server(8000) # Expose metrics on port 8000
+    logging.info("Prometheus metrics exposed on port 8000")
 
     # Set log level
     spark.sparkContext.setLogLevel("WARN")
