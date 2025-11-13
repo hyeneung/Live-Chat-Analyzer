@@ -28,7 +28,7 @@ data:
       kafka:
         bootstrap-servers: kafka-controller-headless:9092
         consumer:
-          group-id: chat-group-${random.uuid}
+          group-id: chat-group
         producer:
           key-serializer: org.apache.kafka.common.serialization.StringSerializer
           value-serializer: org.springframework.kafka.support.serializer.JsonSerializer

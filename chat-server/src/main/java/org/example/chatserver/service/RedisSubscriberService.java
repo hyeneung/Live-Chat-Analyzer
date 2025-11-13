@@ -3,7 +3,8 @@ package org.example.chatserver.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.example.chatserver.dto.StreamUserCountUpdateDto;
+import org.example.chatserver.config.WebSocketConstants;
+import org.example.chatserver.dto.*;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
@@ -19,13 +20,39 @@ public class RedisSubscriberService {
         try {
             log.debug("Received message from Redis: {}", message);
 
-            StreamUserCountUpdateDto updateDto = objectMapper.readValue(message, StreamUserCountUpdateDto.class);
-            String streamId = updateDto.streamId();
+            RedisMessageDto redisMessage = objectMapper.readValue(message, RedisMessageDto.class);
+            String type = redisMessage.type();
+            String payload = redisMessage.payload();
 
-            String destination = org.example.chatserver.config.WebSocketConstants.TOPIC_PREFIX + "/stream/" + streamId + "/user-count";
-            messagingTemplate.convertAndSend(destination, updateDto);
-
-            log.debug("Forwarded user count update to {}: {}", destination, updateDto);
+            switch (type) {
+                case "analysis":
+                    AnalysisResultDto analysisDto = objectMapper.readValue(payload, AnalysisResultDto.class);
+                    String analysisDestination = WebSocketConstants.TOPIC_PREFIX + "/stream/" + analysisDto.streamId() + "/analysis";
+                    messagingTemplate.convertAndSend(analysisDestination, analysisDto);
+                    log.debug("Forwarded analysis result to {}: {}", analysisDestination, analysisDto);
+                    break;
+                case "chat":
+                    ChatMessageDto chatDto = objectMapper.readValue(payload, ChatMessageDto.class);
+                    String chatDestination = WebSocketConstants.TOPIC_PREFIX + "/stream/" + chatDto.streamId() + "/message";
+                    messagingTemplate.convertAndSend(chatDestination, chatDto);
+                    log.debug("Forwarded chat message to {}: {}", chatDestination, chatDto);
+                    break;
+                case "summary":
+                    SummaryResultDto summaryDto = objectMapper.readValue(payload, SummaryResultDto.class);
+                    String summaryDestination = WebSocketConstants.TOPIC_PREFIX + "/stream/" + summaryDto.streamId() + "/summary";
+                    messagingTemplate.convertAndSend(summaryDestination, summaryDto);
+                    log.debug("Forwarded summary result to {}: {}", summaryDestination, summaryDto);
+                    break;
+                case "user-count":
+                    StreamUserCountUpdateDto userCountDto = objectMapper.readValue(payload, StreamUserCountUpdateDto.class);
+                    String userCountDestination = WebSocketConstants.TOPIC_PREFIX + "/stream/" + userCountDto.streamId() + "/user-count";
+                    messagingTemplate.convertAndSend(userCountDestination, userCountDto);
+                    log.debug("Forwarded user count update to {}: {}", userCountDestination, userCountDto);
+                    break;
+                default:
+                    log.warn("Received unknown message type from Redis: {}", type);
+                    break;
+            }
         } catch (Exception e) {
             log.error("Error processing message from Redis: {}", message, e);
         }

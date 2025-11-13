@@ -9,13 +9,22 @@ spring:
   kafka:
     bootstrap-servers: localhost:9092
     consumer:
-      group-id: chat-group-${random.uuid}
+      group-id: chat-group
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
 
 jwt:
   secret: "a"
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "prometheus"
+  metrics:
+    tags:
+      application: chat-server
 
 # custom
 app:
