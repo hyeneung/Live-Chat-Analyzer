@@ -3,7 +3,7 @@ kind: Service
 metadata:
   name: chat-server-service
 spec:
-  type: NodePort # for local testing; use LoadBalancer for cloud deployments
+  type: ClusterIP
   selector:
     app: chat-server
   ports:
@@ -17,7 +17,7 @@ kind: Deployment
 metadata:
   name: chat-server
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       app: chat-server
@@ -27,7 +27,7 @@ spec:
         app: chat-server
       annotations:
         prometheus.io/scrape: 'true'
-        prometheus.io/path: '/actuator/prometheus'
+        prometheus.io/path: '/chat/actuator/prometheus'
         prometheus.io/port: '8090'
     spec:
       containers:
@@ -54,14 +54,14 @@ spec:
               mountPath: /app/config
           readinessProbe:
             httpGet:
-              path: /actuator/health/readiness
+              path: /chat/actuator/health/readiness
               port: 8090
             initialDelaySeconds: 30
             periodSeconds: 10
             failureThreshold: 3
           livenessProbe:
             httpGet:
-              path: /actuator/health/liveness
+              path: /chat/actuator/health/liveness
               port: 8090
             initialDelaySeconds: 60
             periodSeconds: 20
