@@ -54,7 +54,7 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
 
         // Store the Refresh Token in Redis for later validation
         redisTemplate.opsForValue().set(
-                "RT:" + user.getEmail(),
+                "RT:" + user.getId(),
                 refreshToken,
                 jwtUtil.getRefreshTokenExpiration(),
                 TimeUnit.MILLISECONDS
@@ -68,7 +68,7 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
                     "<script>" +
                     "  try {" +
                     "    const data = { accessToken: '" + accessToken + "', refreshToken: '" + refreshToken + "', name: '" + user.getName() + "', profileImage: '" + user.getProfileImage() + "' };" +
-                    "    window.opener.postMessage(data, 'http://localhost:3000');" +
+                    "    window.opener.postMessage(data, 'https://www.live-streaming.store');" +
                     "  } catch (e) {" +
                     "    console.error('Error sending message:', e);" +
                     "  } finally {" +
