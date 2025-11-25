@@ -147,8 +147,8 @@ class SentimentAnalyzerAggregator(KeyedProcessFunction):
         self.msg_count_state.update(msg_count)
         logging.info(f"Message count for {stream_id} is now {msg_count}")
 
-        if msg_count >= 20:
-            logging.info(f"Message count for {stream_id} reached 50. Triggering summary.")
+        if msg_count >= 100:
+            logging.info(f"Message count for {stream_id} reached 100. Triggering summary.")
             summary_request = {"streamId": stream_id}
             summary_request_json = json.dumps(summary_request, ensure_ascii=False)
             yield (self.summary_output_tag, summary_request_json)
