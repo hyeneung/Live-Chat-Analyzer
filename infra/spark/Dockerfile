@@ -5,6 +5,7 @@ USER root
 
 COPY requirements.txt /app/
 COPY summarizer.py /app/
+COPY metrics.properties /opt/spark/conf/
 
 WORKDIR /app
 

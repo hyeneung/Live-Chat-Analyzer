@@ -4,6 +4,14 @@ metadata:
   name: spark-summarizer-job
 spec:
   template:
+    metadata:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics/prometheus"
+        prometheus.io/port: "4040"
+        prometheus.io/scrape_custom: "true"
+        prometheus.io/path_custom: "/metrics"
+        prometheus.io/port_custom: "8000"
     spec:
       containers:
         - name: spark-summarizer
@@ -19,6 +27,7 @@ spec:
               --conf spark.driver.host=$SPARK_DRIVER_POD_IP \
               --conf spark.cassandra.auth.username=cassandra \
               --conf spark.cassandra.auth.password=cassandra \
+              --conf spark.ui.prometheus.enabled=true \
               --conf spark.kubernetes.executor.secretKeyRef.OPENAI_API_KEY.secretName=spark-openai-secret \
               --conf spark.kubernetes.executor.secretKeyRef.OPENAI_API_KEY.key=OPENAI_API_KEY \
               /app/summarizer.py
