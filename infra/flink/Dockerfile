@@ -29,5 +29,12 @@ COPY sentiment_analyzer.py /app/sentiment_analyzer.py
 # Copy custom jars from the local 'lib' directory to Flink's lib directory
 COPY ./lib /opt/flink/lib/
 
-# 7. Switch back to the default flink user
+# Create the plugins directory for the Prometheus reporter and copy the JAR
+# Temporarily switch to root to create directory and copy
+USER root
+RUN mkdir -p /opt/flink/plugins/metrics-prometheus/
+COPY ./lib/flink-metrics-prometheus-1.17.1.jar /opt/flink/plugins/metrics-prometheus/
+# Remove the prometheus jar from the lib directory to avoid ambiguity
+RUN rm /opt/flink/lib/flink-metrics-prometheus-1.17.1.jar
+# Switch back to flink user
 USER flink
