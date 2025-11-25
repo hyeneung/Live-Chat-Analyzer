@@ -11,7 +11,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
-import java.util.Base64;
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
 @Slf4j
@@ -27,7 +27,7 @@ public class JwtUtil {
      */
     @PostConstruct
     protected void init() {
-        secretKey = Keys.hmacShaKeyFor(Base64.getDecoder().decode(secret));
+        secretKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     }
 
     /**

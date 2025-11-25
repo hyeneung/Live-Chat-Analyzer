@@ -21,11 +21,11 @@ public class RedisPublisherService {
         try {
             String payload = objectMapper.writeValueAsString(payloadDto);
             RedisMessageDto redisMessage = RedisMessageDto.from(type, payload);
-            String message = objectMapper.writeValueAsString(redisMessage);
-            redisTemplate.convertAndSend(RedisConfig.CHANNEL_NAME, message);
-            log.debug("Published message to Redis channel '{}': {}", RedisConfig.CHANNEL_NAME, message);
+            // Send the DTO object directly. The GenericJackson2JsonRedisSerializer will handle serialization.
+            redisTemplate.convertAndSend(RedisConfig.CHANNEL_NAME, redisMessage);
+            log.debug("Published message object to Redis channel '{}': {}", RedisConfig.CHANNEL_NAME, redisMessage);
         } catch (JsonProcessingException e) {
-            log.error("Error serializing message for Redis publish", e);
+            log.error("Error serializing message payload for Redis publish", e);
         }
     }
 }

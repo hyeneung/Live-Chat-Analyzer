@@ -19,7 +19,6 @@ public class RedisSubscriberService {
     public void receiveMessage(String message) {
         try {
             log.debug("Received message from Redis: {}", message);
-
             RedisMessageDto redisMessage = objectMapper.readValue(message, RedisMessageDto.class);
             String type = redisMessage.type();
             String payload = redisMessage.payload();
@@ -43,7 +42,7 @@ public class RedisSubscriberService {
                     messagingTemplate.convertAndSend(summaryDestination, summaryDto);
                     log.debug("Forwarded summary result to {}: {}", summaryDestination, summaryDto);
                     break;
-                case "user-count":
+                case "stream-update":
                     StreamUserCountUpdateDto userCountDto = objectMapper.readValue(payload, StreamUserCountUpdateDto.class);
                     String userCountDestination = WebSocketConstants.TOPIC_PREFIX + "/stream/" + userCountDto.streamId() + "/user-count";
                     messagingTemplate.convertAndSend(userCountDestination, userCountDto);
