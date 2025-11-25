@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.example.userserver.domain.stream.dto.RedisMessageDto;
 import org.example.userserver.domain.stream.dto.response.ReadStreamListResponseDto;
 import org.example.userserver.domain.stream.dto.response.StreamUserCountUpdateDto;
 import org.example.userserver.domain.stream.entity.Stream;
@@ -190,12 +191,14 @@ public class StreamServiceImpl implements StreamService {
     }
 
     private void publishStreamUserCountUpdate(Long streamId, Long userCount) {
-        StreamUserCountUpdateDto dto = StreamUserCountUpdateDto.builder()
+        StreamUserCountUpdateDto payloadDto = StreamUserCountUpdateDto.builder()
                 .streamId(String.valueOf(streamId))
                 .userCount(userCount)
                 .build();
         try {
-            String message = objectMapper.writeValueAsString(dto);
+            String payload = objectMapper.writeValueAsString(payloadDto);
+            RedisMessageDto messageDto = RedisMessageDto.from("stream-update", payload);
+            String message = objectMapper.writeValueAsString(messageDto);
             redisTemplate.convertAndSend(streamUpdateChannel, message);
         } catch (JsonProcessingException e) {
             throw new RuntimeException("Error serializing stream update DTO", e);

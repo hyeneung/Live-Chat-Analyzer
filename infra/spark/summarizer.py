@@ -113,9 +113,9 @@ def process_batch(df, epoch_id):
 
     for stream_id in stream_ids:
         # Read from Cassandra for each stream_id.
-        # The new schema sorts by created_at DESC, so limit(300) gets the latest.
+        # The new schema sorts by created_at DESC, so limit(200) gets the latest.
         with CASSANDRA_QUERY_LATENCY.time(): # Measure time for Cassandra query
-            cassandra_df = base_cassandra_df.load().where(col("stream_id") == stream_id).limit(300)
+            cassandra_df = base_cassandra_df.load().where(col("stream_id") == stream_id).limit(200)
         
         if all_chats_df is None:
             all_chats_df = cassandra_df

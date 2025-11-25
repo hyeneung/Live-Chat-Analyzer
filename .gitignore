@@ -116,3 +116,5 @@ chat-generator/naver-shopping/chat-history-**
 # docker-compose.yml
 application-*.yml
 secrets.yaml
+.vercel
+dist

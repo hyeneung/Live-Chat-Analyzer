@@ -42,7 +42,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         // Registers the "/ws" endpoint, enabling SockJS fallback options so that alternate transports can be used if WebSocket is not available.
         // frontend code :  const socket = new SockJS(${process.env.VUE_APP_BACKEND_URL}/ws)
         registry.addEndpoint(WebSocketConstants.WEBSOCKET_ENDPOINT)
-                .setAllowedOriginPatterns("https://live-chat-analyzer.vercel.app", "http://localhost:8080", "http://localhost:3000") // localhost:3000
+                .setAllowedOriginPatterns("https://www.live-streaming.store", "https://live-chat-analyzer.vercel.app", "http://localhost:8080", "http://localhost:3000", "null") // localhost:3000
                 .withSockJS();
     }
 

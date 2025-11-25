@@ -42,7 +42,7 @@ VALUES
     (NOW(), NOW(), 'researcher@example.com', '연구원', 'https://placehold.co/100x100/14B8A6/FFFFFF?text=RS', 'USER');
 
 
-INSERT INTO stream (created_at, modified_at, title, host_id, thumbnail_url)
+INSERT IGNORE INTO stream (created_at, modified_at, title, host_id, thumbnail_url)
 VALUES
     -- IT전문가 (id: 4), 방송 1
     (NOW(), NOW(), '[쇼핑] FW 베스트 아이템전', 4, 'https://static.lookpin.co.kr/20240911081430-f158/c16323210ef04514b991bdd782b5f2b3.jpg'),

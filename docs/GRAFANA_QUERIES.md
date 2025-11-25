@@ -54,7 +54,7 @@ Common metrics collected from Spring Boot Actuator endpoints. Filter by `applica
 | **HTTP Average Response Time** | `sum(rate(http_server_requests_seconds_sum{application="user-server"}[1m])) by (uri) / sum(rate(http_server_requests_seconds_count{application="user-server"}[1m])) by (uri)` | Shows the average response time (in seconds) for each API endpoint. |
 | **JVM Memory Usage** | `jvm_memory_used_bytes{application="user-server"}` | Shows the JVM heap memory usage for the application. |
 | **System CPU Usage** | `system_cpu_usage{application="user-server"}` | Shows the CPU utilization of the application (value between 0.0 and 1.0). |
-| **Active WebSocket Sessions (Chat-Server Only)** | `tomcat_sessions_active_current_sessions{application="chat-server"}` | Shows the number of active WebSocket sessions connected to the Chat-Server. (Assumes Tomcat-based WebSocket implementation). |
+| **Active WebSocket Sessions (Chat-Server Only)** | `websocket_sessions_active{application="chat-server"}` | Shows the number of active WebSocket sessions connected to the Chat-Server. |
 
 ---
 

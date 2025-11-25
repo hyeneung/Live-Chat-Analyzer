@@ -1,0 +1,34 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: path-based-ingress
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-staging
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: api.live-streaming.store
+    http:
+      paths:
+      # More specific path for chat-server first
+      - path: /chat
+        pathType: Prefix
+        backend:
+          service:
+            name: chat-server-service
+            port:
+              number: 8090
+      # Default backend for all other paths
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: user-server-service
+            port:
+              number: 8080
+  tls:
+  - hosts:
+    - api.live-streaming.store
+    secretName: api-live-streaming-store-tls # cert-manager will store the certificate in this secret
