@@ -68,7 +68,7 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         // Allow requests from the frontend development server
-        configuration.setAllowedOrigins(Arrays.asList("https://live-chat-analyzer.vercel.app", "http://localhost:8080", "http://localhost:3000"));
+        configuration.setAllowedOrigins(Arrays.asList("https://www.live-streaming.store", "https://live-chat-analyzer.vercel.app", "http://localhost:8080", "http://localhost:3000"));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true);
