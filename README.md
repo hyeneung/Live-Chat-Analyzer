@@ -4,8 +4,9 @@
 This project aims to build a robust system for efficiently collecting, storing, and analyzing comment data generated in high-volume real-time streaming environments. It is designed to handle thousands of comments per second, provide instant feedback through real-time analysis, and generate summarized insights from the overall comment flow.
 
 ## 📹 Demo 
-The system performs real-time sentiment analysis on chat messages to categorize viewer responses (e.g., compliments, insults, humor). For chat summarization, the system triggers a summary generation after every 20 new messages by preprocessing and aggregating the previous 500 comments. This summary is generated via the OpenAI API and reflected on the viewer interface dynamically.
-![Demo](https://github.com/user-attachments/assets/923a630c-16fa-4a13-b541-8a5376423562)
+The system performs real-time sentiment analysis on chat messages to categorize viewer responses (e.g., compliments, insults, humor). For chat summarization, the system triggers a summary generation after every 20 new messages by preprocessing and aggregating the previous 100 comments. This summary is generated via the OpenAI API and reflected on the viewer interface dynamically.
+![demo](https://github.com/user-attachments/assets/b09f81fa-b7af-46f1-b2d8-b937784a64ee)
+
 
 ## ✨ Key Features
 
