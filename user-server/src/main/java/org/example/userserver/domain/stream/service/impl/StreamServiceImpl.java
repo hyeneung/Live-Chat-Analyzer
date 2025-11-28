@@ -115,6 +115,7 @@ public class StreamServiceImpl implements StreamService {
      * @return The SseEmitter instance for the client.
      */
     @Override
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public SseEmitter subscribe() {
         // Create an emitter with a very long timeout.
         SseEmitter emitter = new SseEmitter(Long.MAX_VALUE);
