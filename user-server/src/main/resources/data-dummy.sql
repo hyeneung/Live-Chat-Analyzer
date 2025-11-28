@@ -42,17 +42,17 @@ VALUES
     (NOW(), NOW(), 'researcher@example.com', '연구원', 'https://placehold.co/100x100/14B8A6/FFFFFF?text=RS', 'USER');
 
 
-INSERT IGNORE INTO stream (created_at, modified_at, title, host_id, thumbnail_url)
+INSERT IGNORE INTO stream (id, created_at, modified_at, title, host_id, thumbnail_url)
 VALUES
     -- IT전문가 (id: 4), 방송 1
-    (NOW(), NOW(), '[쇼핑] FW 베스트 아이템전', 4, 'https://static.lookpin.co.kr/20240911081430-f158/c16323210ef04514b991bdd782b5f2b3.jpg'),
+    (1, NOW(), NOW(), '[쇼핑] FW 베스트 아이템전', 4, 'https://static.lookpin.co.kr/20240911081430-f158/c16323210ef04514b991bdd782b5f2b3.jpg'),
     -- 요리왕 (id: 5), 방송 2
-    (NOW(), NOW(), '무한도전 레전드 특집 다시보기', 5, 'https://i.ytimg.com/vi/IDAw0V5MaSg/maxresdefault.jpg'),
+    (2, NOW(), NOW(), '무한도전 레전드 특집 다시보기', 5, 'https://i.ytimg.com/vi/IDAw0V5MaSg/maxresdefault.jpg'),
     -- 뮤직크리에이터 (id: 2), 방송 3
-    (NOW(), NOW(), '여러분의 고민을 들어드려요', 2, 'https://placehold.co/600x400/1F2937/FFFFFF?text=방송+3'),
+    (3, NOW(), NOW(), '여러분의 고민을 들어드려요', 2, 'https://placehold.co/600x400/1F2937/FFFFFF?text=방송+3'),
     -- 게임스트리머 (id: 1), 방송 4
-    (NOW(), NOW(), '새로운 인디게임 플레이', 1, 'https://placehold.co/600x400/1F2937/FFFFFF?text=방송+4'),
+    (4, NOW(), NOW(), '새로운 인디게임 플레이', 1, 'https://placehold.co/600x400/1F2937/FFFFFF?text=방송+4'),
     -- 일상브이로거 (id: 3), 방송 5
-    (NOW(), NOW(), '직장인 리얼 라이프', 3, 'https://placehold.co/600x400/1F2937/FFFFFF?text=방송+5'),
+    (5, NOW(), NOW(), '직장인 리얼 라이프', 3, 'https://placehold.co/600x400/1F2937/FFFFFF?text=방송+5'),
     -- 프로그래머 (id: 6), 방송 6
-    (NOW(), NOW(), '코딩하며 함께 밤새기', 6, 'https://placehold.co/600x400/1F2937/FFFFFF?text=방송+6');
+    (6, NOW(), NOW(), '코딩하며 함께 밤새기', 6, 'https://placehold.co/600x400/1F2937/FFFFFF?text=방송+6');
