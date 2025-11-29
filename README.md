@@ -19,23 +19,122 @@ The system performs real-time sentiment analysis on chat messages to categorize 
 
 This project is composed of several microservices and a data processing pipeline that work together to provide real-time analysis.
 
-<img width="1733" height="933" alt="image" src="https://github.com/user-attachments/assets/df9e945d-db4f-4892-a7e4-42431fa3d9b0" />
+```mermaid
+graph TD
+    %% Modern Styling with Icons & Gradients
+    classDef client fill:#FFEBEE,stroke:#D32F2F,stroke-width:4px,color:#000,font-weight:bold
+    classDef service fill:#E3F2FD,stroke:#1976D2,stroke-width:4px,color:#000,font-weight:bold
+    classDef pipeline fill:#FFF8E1,stroke:#F57C00,stroke-width:4px,color:#000,font-weight:bold
+    classDef infra fill:#E8F5E9,stroke:#388E3C,stroke-width:4px,color:#000,font-weight:bold
+    classDef monitoring fill:#FFFDE7,stroke:#FBC02D,stroke-width:4px,color:#000,font-weight:bold
+    classDef security fill:#F3E5F5,stroke:#7B1FA2,stroke-width:4px,color:#000,font-weight:bold
+
+    %% External Access Layer
+    subgraph "🌐 External Access"
+        User[👨‍💻 User's Browser]
+        Vercel[▲ Vercel - Frontend Hosting]
+        Ingress[🚪 Kubernetes Ingress]
+    end
+
+    %% Kubernetes Core
+    subgraph "☸️ Kubernetes Cluster"
+        subgraph "🎯 Backend Services"
+            UserServer[👤 User Server<br/>Spring Boot]
+            ChatServer[💬 Chat Server<br/>Spring Boot]
+        end
+
+        subgraph "📨 Kafka Streams"
+            RawChats[📥 raw-chats]
+            Analysis[📊 analysis-result] 
+            SummaryReq[✉️ summary-requests]
+            Summary[📝 summary-results]
+            Connect[🔗 Kafka Connect]
+            KafkaTopicsInit[Job: Kafka Topics Init]
+        end
+
+        subgraph "⚡ Processing Pipeline"
+            Flink[⚙️ Apache Flink<br/>Real-time Analysis]
+            Spark[✨ Apache Spark<br/>Batch Summaries]
+        end
+
+        subgraph "💾 Data Layer"
+            Redis[⚡ Redis<br/>Pub/Sub + Cache]
+            Cassandra[🗃️ Cassandra<br/>Chat History]
+            MySQL[📊 MySQL<br/>User/Stream Meta]
+        end
+
+        subgraph "📊 Monitoring Stack"
+            Prometheus[📈 Prometheus]
+            Grafana[📊 Grafana Dashboards]
+            KafkaExporter[📦 Kafka Exporter]
+        end
+
+        subgraph "🔒 Security & Management"
+            CertManager[🛡️ Cert-Manager]
+            K8sDashboard[🖥️ K8s Dashboard]
+        end
+    end
+
+    %% Apply Beautiful Styling
+    class User client;
+    class Vercel client;
+    class Frontend,UserServer,ChatServer service;
+    class Flink,Spark pipeline;
+    class RawChats,Analysis,SummaryReq,Summary,Connect,KafkaTopicsInit pipeline;
+    class Redis,Cassandra,MySQL infra;
+    class Prometheus,Grafana,KafkaExporter monitoring;
+    class CertManager,K8sDashboard security;
+
+    %% 🎯 Critical Data Flows (Simplified & Clear)
+    User -.->|"Traffic"| Ingress
+    User -.->|"Access"| Vercel
+
+    Ingress -->|API| UserServer
+    Ingress -->|WS| ChatServer
+    Vercel -->|API| Ingress
+
+    %% User Server
+    UserServer <-->|"CRUD"| MySQL
+    UserServer <-->|"Cache/Tokens"| Redis
+
+    %% Chat Processing Pipeline  
+    ChatServer -->|"Raw Messages"| RawChats
+    RawChats -->|"Stream Processing"| Flink
+    Flink -->|"Analysis"| Analysis
+    Analysis --> ChatServer
+    Flink -->|"Trigger Summary"| SummaryReq
+    SummaryReq --> Spark
+    Spark -->|"Summaries"| Summary
+    Summary --> ChatServer
+
+    %% Persistence & Distribution
+    RawChats -->|"Sink"| Connect
+    Connect --> Cassandra
+    ChatServer <-->|"Live Updates (Pub/Sub)"| Redis
+
+    %% Monitoring
+    Prometheus -->|Scrapes Metrics| UserServer
+    Prometheus -->|Scrapes Metrics| ChatServer
+    Prometheus -->|Scrapes Metrics| Flink
+    Prometheus -->|Scrapes Metrics| Spark
+    Prometheus -->|Scrapes Metrics| KafkaExporter
+    Grafana -->|Queries Metrics| Prometheus
+
+    %% Security & Management
+    CertManager -->|Issues TLS Certs| Ingress
+    KafkaTopicsInit -->|Creates Topics| RawChats
+    KafkaTopicsInit -->|Creates Topics| Analysis
+    KafkaTopicsInit -->|Creates Topics| SummaryReq
+    KafkaTopicsInit -->|Creates Topics| Summary
+```
+
+This project is built using a distributed microservices architecture, leveraging Kubernetes for orchestration and Vercel for frontend hosting.
 
 ### Core Components
 
--   **Frontend**: A **Vue.js** single-page application providing the user interface for viewing broadcasts and interacting with the chat.
-
--   **User Server**: A **Spring Boot** service responsible for:
-    -   User authentication (login/registration).
-    -   Managing stream information (e.g., list of broadcasts).
-    -   Tracking user entry/exit from a stream and publishing viewer count updates to Redis.
-    -   Providing viewer count updates to clients via **Server-Sent Events (SSE)**.
-
--   **Chat Server**: A **Spring Boot** service that:
-    -   Manages real-time communication with clients via **WebSockets (STOMP)**.
-    -   Receives chat messages and publishes them to a `raw-chats` Kafka topic.
-    -   Dynamically subscribes to stream-specific Redis channels (`broadcast:{streamId}`) based on active client connections to receive processed data.
-    -   Forwards analysis, summaries, and viewer counts to clients.
+-   **Frontend (Vercel)**: A **Vue.js** single-page application hosted externally on **Vercel**, providing the user interface.
+-   **User Server (Spring Boot)**: Manages user authentication, stream metadata, tracks viewer counts, and publishes updates to Redis. Delivers real-time viewer count updates via **Server-Sent Events (SSE)**.
+-   **Chat Server (Spring Boot)**: Handles real-time communication via **WebSockets (STOMP)**, publishes raw chat messages to Kafka, consumes processed data from Kafka, and distributes updates to clients via dynamic Redis Pub/Sub channels.
 
 ### Data & Processing Pipeline
 
