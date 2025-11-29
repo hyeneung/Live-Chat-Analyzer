@@ -33,7 +33,7 @@ public class KafkaConsumerService {
      */
     @KafkaListener(topics = "${kafka.topic.analysis-result}", groupId = "${spring.kafka.consumer.group-id}", containerFactory = "analysisResultListenerContainerFactory")
     public void listenAnalysisResult(AnalysisResultDto message) {
-        redisPublisherService.publish("analysis", message);
+        redisPublisherService.publish(message.streamId(), "analysis", message);
     }
 
     /**
@@ -43,18 +43,16 @@ public class KafkaConsumerService {
      */
     @KafkaListener(topics = "${kafka.topic.raw-chats}", groupId = "${spring.kafka.consumer.group-id}")
     public void listenRawChats(ChatMessageDto message) {
-        redisPublisherService.publish("chat", message);
+        redisPublisherService.publish(message.streamId(), "chat", message);
     }
 
     @KafkaListener(topics = "${kafka.topic.summary-results}", groupId = "${spring.kafka.consumer.group-id}", containerFactory = "summaryResultListenerContainerFactory")
     public void listenSummaryResult(SummaryResultDto message) {
-        logger.info("Received summary result: {}", message);
         String redisKey = "summary:" + message.streamId();
-        logger.info("Saving summary to Redis with key: {}", redisKey);
         redisTemplate.opsForValue().set(redisKey, message.summary());
 
         // Publish summary to the Redis backplane for broadcasting to WebSocket clients
-        redisPublisherService.publish("summary", message);
+        redisPublisherService.publish(message.streamId(), "summary", message);
         logger.info("Published summary to Redis backplane for broadcasting");
     }
 }

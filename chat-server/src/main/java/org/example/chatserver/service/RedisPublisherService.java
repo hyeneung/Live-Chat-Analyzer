@@ -17,13 +17,14 @@ public class RedisPublisherService {
     private final RedisTemplate<String, Object> redisTemplate;
     private final ObjectMapper objectMapper;
 
-    public void publish(String type, Object payloadDto) {
+    public void publish(String streamId, String type, Object payloadDto) {
+        String channel = "broadcast:" + streamId; // Changed channel naming convention
         try {
             String payload = objectMapper.writeValueAsString(payloadDto);
             RedisMessageDto redisMessage = RedisMessageDto.from(type, payload);
             // Send the DTO object directly. The GenericJackson2JsonRedisSerializer will handle serialization.
-            redisTemplate.convertAndSend(RedisConfig.CHANNEL_NAME, redisMessage);
-            log.debug("Published message object to Redis channel '{}': {}", RedisConfig.CHANNEL_NAME, redisMessage);
+            redisTemplate.convertAndSend(channel, redisMessage);
+            log.debug("Published message object to Redis channel '{}': {}", channel, redisMessage);
         } catch (JsonProcessingException e) {
             log.error("Error serializing message payload for Redis publish", e);
         }
