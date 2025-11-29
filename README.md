@@ -1,62 +1,82 @@
-# 💬 Real-time Streaming Comment Analysis System
-## 🌟 Project Overview
+# 💬 Live Chat Analyzer
 
-This project aims to build a robust system for efficiently collecting, storing, and analyzing comment data generated in high-volume real-time streaming environments. It is designed to handle thousands of comments per second, provide instant feedback through real-time analysis, and generate summarized insights from the overall comment flow.
+A real-time, distributed system for analyzing and summarizing high-volume chat streams from live broadcasts. The system is designed to handle thousands of messages per second, providing immediate sentiment analysis and periodic summaries to viewers and broadcasters.
 
-## 📹 Demo 
+## ✨ Features
+
+- **High-Volume Chat Ingestion**: Reliably processes and stores thousands of chat messages per second.
+- **Real-Time Sentiment Analysis**: Instantly analyzes and displays the sentiment of each chat message.
+- **Periodic Chat Summarization**: Generates periodic summaries of the conversation, providing a quick overview of the chat's context.
+- **Live Viewer Count**: Tracks and displays the number of viewers in a broadcast in real-time.
+- **Scalable, Distributed Architecture**: Built on a microservices architecture using a message-driven approach, allowing for independent scaling of components.
+- **Containerized & Orchestrated**: Fully containerized with Docker and ready for deployment on Kubernetes.
+
+## 📹 Demo
 The system performs real-time sentiment analysis on chat messages to categorize viewer responses (e.g., compliments, insults, humor). For chat summarization, the system triggers a summary generation after every 20 new messages by preprocessing and aggregating the previous 100 comments. This summary is generated via the OpenAI API and reflected on the viewer interface dynamically.
 ![demo](https://github.com/user-attachments/assets/b09f81fa-b7af-46f1-b2d8-b937784a64ee)
 
-
-## ✨ Key Features
-
-* **Real-time Comment Ingestion & Storage**: Reliably ingests and durably stores high-volume comment traffic without data loss.
-* **Real-time Comment Analysis**: Provides instant analysis results for individual comments (e.g., profanity detection, sentiment analysis, keyword extraction).
-* **Periodic Comment Summarization**: Generates comprehensive summaries of comment trends over specific periods (e.g., hourly, daily).
-* **Distributed & Scalable Architecture**: All components are designed for distributed environments, allowing flexible scaling to meet increased traffic demands.
-* **Kubernetes-based Deployment**: All services are containerized and managed within a Kubernetes cluster for easy deployment and orchestration.
-
 ## 🚀 System Architecture
+
+This project is composed of several microservices and a data processing pipeline that work together to provide real-time analysis.
+
 <img width="1733" height="933" alt="image" src="https://github.com/user-attachments/assets/df9e945d-db4f-4892-a7e4-42431fa3d9b0" />
 
-* **user-server**:
-    * **User Management**: Handles user login, registration, and authentication using JWTs.
-    * **API Endpoints**: Provides APIs for streaming lists (dashboard data), user profiles, and other core application functionalities.
-    * **Real-time Updates**: Receives real-time updates via SSE (Server-Sent Events) from Redis and also fetches summarized data.
-* **chat-server**:
-    * Handles real-time chat messages, communicating with users via WebSockets.
-    * Sends incoming comments to Kafka's `raw-chats` topic.
-    * Subscribes to Kafka's `analysis-result topic` for real-time analysis results to display to chat participants.
-* **Kafka**:
-    * `raw-chats topic`: All raw, original comment data received from chat servers is published here. It acts as the central hub for the data stream.
-    * `analysis-result topic`: Real-time analysis results from Flink are published here. `chat-server` instances subscribe to this topic (with unique consumer group IDs) to broadcast updates to users.
-* **Apache Flink (Real-time Analysis)**:
-    * Consumes comment data from the `raw-chats` topic in real-time, performing immediate analysis (e.g., profanity detection, sentiment analysis, keyword extraction).
-    * Publishes the analysis results to the `analysis-result topic` for real-time delivery to users.
-* **Cassandra**:
-    * A distributed NoSQL database that durably stores all raw comment data from the `raw-chats` topic. Optimized for high-volume write operations.
-* **Apache Spark (Batch Analysis)**:
-    * Periodically reads large volumes of historical comment data from Cassandra to perform complex batch analysis (e.g., summarizing overall comment trends, topic modeling).
-    * Stores the resulting summarized text into Redis.
-* **Redis**:
-    * `stream-updates channel`: `user-server` instances subscribe to this channel and use SSE to update dashboards(e.g. current user count) in real-time.
-    * **Summarized Text Storage**: Stores the summarized text generated by Spark. `user-server` queries this directly when summary information is requested.
-    * **Refresh Token Storage**: Securely stores refresh tokens, enabling refresh token rotation for enhanced user authentication security. This ensures that refresh tokens are single-use and invalidated after each use.
-* **MySQL**:
-    * Stores structured data such as user profiles, stream data, or other relational data required for the application. Accessed by `user-server`.
-* **Kubernetes (Pods)**: All `user-server` and `chat-server` instances, along with data infrastructure components (Kafka, Flink, Spark, Cassandra, Redis, MySQL), are deployed and managed as Pods within a Kubernetes cluster.
+### Core Components
 
-## 🛠️ Technology Stack
+-   **Frontend**: A **Vue.js** single-page application providing the user interface for viewing broadcasts and interacting with the chat.
 
-* **Frontend**: Vue.js
-* **Backend**: Spring Boot (for `user-server`, `chat-server` implementation)
-* **Real-time Messaging**: Apache Kafka
-* **Stream Processing**: Apache Flink
-* **Distributed Batch Processing**: Apache Spark
-* **NoSQL Database**: Apache Cassandra
-* **In-memory Data Store/Caching**: Redis
-* **Relational Database**: MySQL
-* **Container Orchestration**: Kubernetes
+-   **User Server**: A **Spring Boot** service responsible for:
+    -   User authentication (login/registration).
+    -   Managing stream information (e.g., list of broadcasts).
+    -   Tracking user entry/exit from a stream and publishing viewer count updates to Redis.
+    -   Providing viewer count updates to clients via **Server-Sent Events (SSE)**.
+
+-   **Chat Server**: A **Spring Boot** service that:
+    -   Manages real-time communication with clients via **WebSockets (STOMP)**.
+    -   Receives chat messages and publishes them to a `raw-chats` Kafka topic.
+    -   Dynamically subscribes to stream-specific Redis channels (`broadcast:{streamId}`) based on active client connections to receive processed data.
+    -   Forwards analysis, summaries, and viewer counts to clients.
+
+### Data & Processing Pipeline
+
+-   **Kafka**: Acts as the central, durable message broker.
+    -   `raw-chats`: A topic for all incoming raw chat messages from the `chat-server`.
+    -   `summary-requests`: A topic used to trigger the Spark summarization job.
+    -   `analysis-results` & `summary-results`: Topics for processed data from the analysis pipeline.
+
+-   **Flink**: A stream-processing framework that consumes from `raw-chats`, performs real-time sentiment analysis, and publishes results back to a Kafka topic. It also sends messages to the `summary-requests` topic to trigger periodic summarization.
+
+-   **Spark**: A distributed processing framework that consumes from the `summary-requests` topic to periodically generate chat summaries from the data in Cassandra/Kafka.
+
+-   **Redis**: Used as a high-speed, in-memory backbone for real-time messaging, caching, and state management.
+    -   **Pub/Sub Backplane**: Functions as a messaging backplane. Services publish updates to dynamic `broadcast:{streamId}` channels, allowing `chat-server` instances to subscribe only to the streams their clients are watching, enabling efficient message fan-out.
+    -   **Stream Data & Caching**: Stores the set of active user IDs for each stream (used to calculate live viewer counts) and caches the generated chat summaries.
+    -   **Authentication State**: Stores user refresh tokens to manage authentication sessions and enable secure token rotation.
+
+-   **Cassandra**: A highly-scalable NoSQL database used for the persistent storage of all chat messages from the `raw-chats` topic.
+
+## 🛠️ Tech Stack
+
+-   **Frontend**: `Vue.js`
+-   **Backend**: `Java`, `Spring Boot`
+-   **Messaging/Streaming**: `Apache Kafka`, `WebSockets`, `SSE`
+-   **Stream Processing**: `Apache Flink`
+-   **Batch Processing**: `Apache Spark`
+-   **Database**: `Cassandra` (Primary Storage), `Redis` (Pub/Sub & Caching)
+-   **Infrastructure**: `Docker`, `Kubernetes`, `Prometheus`, `Grafana`
+
+## 📂 Project Structure
+
+```
+.
+├── chat-generator/    # Scripts to generate mock chat data for testing
+├── chat-server/       # Spring Boot service for WebSocket chat handling
+├── user-server/       # Spring Boot service for user and stream management
+├── docs/              # Documentation for deployment and queries
+├── frontend/          # Vue.js frontend application
+├── infra/             # Docker-compose setup and configurations for infrastructure (Kafka, Flink, Spark, etc.)
+└── k8s/               # Kubernetes manifests for production deployment
+```
 
 ## 📄 License
 
