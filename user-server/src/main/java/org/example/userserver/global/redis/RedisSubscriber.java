@@ -1,6 +1,7 @@
 package org.example.userserver.global.redis;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.RequiredArgsConstructor;
 import org.example.userserver.domain.stream.dto.RedisMessageDto;
 import org.example.userserver.domain.stream.dto.response.StreamUserCountUpdateDto;
 import org.example.userserver.domain.stream.service.StreamService;
@@ -12,19 +13,11 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 
 @Component
+@RequiredArgsConstructor
 public class RedisSubscriber implements MessageListener {
 
     private final ObjectMapper objectMapper;
     private final StreamService streamService;
-    private final String streamUpdateChannel;
-
-    public RedisSubscriber(ObjectMapper objectMapper,
-                           StreamService streamService,
-                           @Value("${app.redis-channel}") String streamUpdateChannel) {
-        this.objectMapper = objectMapper;
-        this.streamService = streamService;
-        this.streamUpdateChannel = streamUpdateChannel;
-    }
 
     /**
      * Callback method executed when a message is received from a Redis channel.
@@ -39,7 +32,7 @@ public class RedisSubscriber implements MessageListener {
         try {
             RedisMessageDto messageDto = objectMapper.readValue(message.getBody(), RedisMessageDto.class);
 
-            if (streamUpdateChannel.equals(messageDto.type())) {
+            if ("stream-update".equals(messageDto.type())) {
                 StreamUserCountUpdateDto updateDto = objectMapper.readValue(messageDto.payload(), StreamUserCountUpdateDto.class);
                 streamService.notifyUserCountUpdate(updateDto);
             }

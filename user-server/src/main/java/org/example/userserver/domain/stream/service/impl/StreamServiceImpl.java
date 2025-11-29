@@ -2,7 +2,6 @@ package org.example.userserver.domain.stream.service.impl;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.userserver.domain.stream.dto.RedisMessageDto;
 import org.example.userserver.domain.stream.dto.response.ReadStreamListResponseDto;
@@ -10,6 +9,7 @@ import org.example.userserver.domain.stream.dto.response.StreamUserCountUpdateDt
 import org.example.userserver.domain.stream.entity.Stream;
 import org.example.userserver.domain.stream.repository.StreamRepository;
 import org.example.userserver.domain.stream.service.StreamService;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
@@ -34,12 +34,12 @@ import java.util.concurrent.CopyOnWriteArrayList;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class StreamServiceImpl implements StreamService {
 
     private final StreamRepository streamRepository;
     private final RedisTemplate<String, String> redisTemplate;
+    private final RedisTemplate<String, Object> redisPubSubTemplate;
     private final ObjectMapper objectMapper;
 
     @Value("${app.redis-channel}")
@@ -50,6 +50,18 @@ public class StreamServiceImpl implements StreamService {
 
     private static final String USER_SET_PREFIX = "stream:users:";
     private static final String SUMMARY_PREFIX = "summary:";
+
+    public StreamServiceImpl(
+        StreamRepository streamRepository,
+        @Qualifier("redisTemplate") RedisTemplate<String, String> redisTemplate,
+        @Qualifier("redisPubSubTemplate") RedisTemplate<String, Object> redisPubSubTemplate,
+        ObjectMapper objectMapper
+    ) {
+        this.streamRepository = streamRepository;
+        this.redisTemplate = redisTemplate;
+        this.redisPubSubTemplate = redisPubSubTemplate;
+        this.objectMapper = objectMapper;
+    }
 
     /**
      * Retrieves a paginated list of all available streams.
@@ -198,9 +210,9 @@ public class StreamServiceImpl implements StreamService {
                 .build();
         try {
             String payload = objectMapper.writeValueAsString(payloadDto);
-            RedisMessageDto messageDto = RedisMessageDto.from("stream-update", payload);
-            String message = objectMapper.writeValueAsString(messageDto);
-            redisTemplate.convertAndSend(streamUpdateChannel, message);
+            RedisMessageDto redisMessage = RedisMessageDto.from("stream-update", payload);
+            // Send the DTO object directly. The GenericJackson2JsonRedisSerializer will handle serialization.
+            redisPubSubTemplate.convertAndSend(streamUpdateChannel, redisMessage);
         } catch (JsonProcessingException e) {
             throw new RuntimeException("Error serializing stream update DTO", e);
         }
