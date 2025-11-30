@@ -111,7 +111,7 @@ With **Parallelism=1**, the Flink job was unable to process data from 4 Kafka pa
 1.  **Primary Finding**: Increasing Flink parallelism from 1 to 4 was a **critical success**. It resolved the severe data pipeline bottleneck, enabling the system to handle its full target load without data processing delays.
 2.  **Identified Bottleneck**: The load tests clearly identify that the next performance limit is the **CPU capacity of the `chat-server` pods**.
 3.  **Recommendations**:
-    -   **Scale Horizontally**: To support more than 500 users, the `chat-server` deployment must be scaled horizontally (add more pods).
+    -   **Scale Horizontally**: To support more than 500 users, the `chat-server` deployment must be scaled horizontally (i.e., more pods).
     -   **Investigate Memory**: A high-priority investigation into the **JVM memory imbalance** between `chat-server` pods is crucial for long-term stability.
 
 ## 6. Test Artifacts
@@ -122,3 +122,42 @@ With **Parallelism=1**, the Flink job was unable to process data from 4 Kafka pa
     -   [https://drive.google.com/file/d/1ENJO6DjVqvnZNL91MDd98rzW2g5X1lVx/view?usp=sharing](https://drive.google.com/file/d/1ENJO6DjVqvnZNL91MDd98rzW2g5X1lVx/view?usp=sharing)
 -   **Node CPU Utilization Screenshot(Before&After the test):**
     -   <img width="1029" height="230" alt="image" src="https://github.com/user-attachments/assets/f46ed09d-9920-4d8c-88ca-310877c279d7" />
+
+---
+
+## 7. Scaling Test Analysis (4-Replica `chat-server`)
+
+Based on the baseline test identifying the `chat-server` CPU as the next bottleneck, a final test was run from **18:01** onwards with the number of `chat-server` replicas increased from 2 to 4. This section details the results of that test.
+
+### 7.1. Key Metrics Summary (4-Replica Test)
+
+| Component / Metric              | Peak Value                      | Average (during load) | Status / Notes                                                      |
+| ------------------------------- | ------------------------------- | --------------------- | ------------------------------------------------------------------- |
+| **Total Ingress Rate**          | **~450 RPS**                    | **~400 RPS**          | **Significant Improvement**. Throughput nearly doubled.             |
+| **`chat-server` CPU (per pod)** | ~0.9 vCPU Core                  | ~0.8 vCPU Core        | **Efficient**. Pods were busy but not fully saturated.               |
+| **`chat-server` JVM Memory**    | ~450 MB                         | ~400 MB               | **Stable**. The previous memory imbalance issue did not recur.      |
+| **WebSocket Sessions**          | ~500 total (~125 per pod)       | ~480 total            | **Excellent**. Load was perfectly distributed across 4 pods.        |
+| **Data Pipeline Health**        | Lag < 10, Backpressure = 0%     | -                     | **Healthy**. The pipeline handled the increased load without issue. |
+
+### 7.2. Comparative Results & Scaling Efficiency (2 vs. 4 Replicas)
+
+| Metric                        | Test with 2 Replicas | Test with 4 Replicas | Improvement Factor |
+| ----------------------------- | -------------------- | -------------------- | ------------------ |
+| `chat-server` Pods            | 2                    | 4                    | 2x                 |
+| **Sustained Throughput (RPS)**| ~125 RPS             | **~400 RPS**         | **~3.2x**          |
+| Avg CPU per Pod               | ~0.9 cores (Saturated)| ~0.8 cores           | More headroom      |
+| **System Efficiency (RPS per Core)** | ~69 RPS/core         | **~125 RPS/core**    | **+81%**           |
+
+### 7.3. Analysis and Final Conclusion
+- **Scaling Success**: Horizontally scaling the `chat-server` from 2 to 4 replicas was highly effective. It successfully removed the CPU bottleneck, leading to a **3.2x increase in system throughput** and an **81% gain in CPU efficiency**.
+- **System Capacity**: The system, in this configuration, can comfortably handle a sustained load of **400 RPS**. The next bottleneck at a much higher scale would likely be network bandwidth or database I/O.
+- **Stability**: The previous JVM memory imbalance issue appears to be resolved, contributing to the overall stability of the system under load.
+
+---
+
+## 8. Test Artifacts
+
+-   **Load Test Result (Grafana Snapshot):**
+    -   [https://snapshots.raintank.io/dashboard/snapshot/LnuLkmaYDmNUe5XbVNNYAUsjXBKJ0HHE](https://snapshots.raintank.io/dashboard/snapshot/LnuLkmaYDmNUe5XbVNNYAUsjXBKJ0HHE)
+-   **Load Testing Video:**
+    -   [https://drive.google.com/file/d/15lYn1RCnb0VWonYI0GtqFkfaMa5ESUxL/view?usp=sharing](https://drive.google.com/file/d/15lYn1RCnb0VWonYI0GtqFkfaMa5ESUxL/view?usp=sharing)
