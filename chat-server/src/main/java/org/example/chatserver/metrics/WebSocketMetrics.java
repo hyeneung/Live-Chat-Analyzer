@@ -27,6 +27,11 @@ public class WebSocketMetrics {
 
     @EventListener
     public void handleSessionDisconnected(SessionDisconnectEvent event) {
-        activeSessions.decrementAndGet();
+        int currentValue;
+        int newValue;
+        do {
+            currentValue = activeSessions.get();
+            newValue = Math.max(0, currentValue - 1);
+        } while (!activeSessions.compareAndSet(currentValue, newValue));
     }
 }
