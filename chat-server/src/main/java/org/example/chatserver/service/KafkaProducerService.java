@@ -14,9 +14,11 @@ public class KafkaProducerService {
 
     // KafkaTemplate provides a high-level abstraction for sending messages.
     private final KafkaTemplate<String, ChatMessageDto> kafkaTemplate;
+    private final RedisPublisherService redisPublisherService;
 
-    public KafkaProducerService(KafkaTemplate<String, ChatMessageDto> kafkaTemplate) {
+    public KafkaProducerService(KafkaTemplate<String, ChatMessageDto> kafkaTemplate, RedisPublisherService redisPublisherService) {
         this.kafkaTemplate = kafkaTemplate;
+        this.redisPublisherService = redisPublisherService;
     }
 
     /**
@@ -26,5 +28,6 @@ public class KafkaProducerService {
      */
     public void sendMessage(String topic, ChatMessageDto message) {
         kafkaTemplate.send(topic, UUID.randomUUID().toString(), message);
+        redisPublisherService.publish(message.streamId(), "chat", message);
     }
 }

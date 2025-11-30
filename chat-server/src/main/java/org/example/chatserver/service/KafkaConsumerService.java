@@ -36,16 +36,6 @@ public class KafkaConsumerService {
         redisPublisherService.publish(message.streamId(), "analysis", message);
     }
 
-    /**
-     * Listens for messages on the "raw-chats" Kafka topic.
-     * Once a message is received, it is published to the Redis backplane for broadcasting.
-     * @param message The raw chat message received from Kafka.
-     */
-    @KafkaListener(topics = "${kafka.topic.raw-chats}", groupId = "${spring.kafka.consumer.group-id}")
-    public void listenRawChats(ChatMessageDto message) {
-        redisPublisherService.publish(message.streamId(), "chat", message);
-    }
-
     @KafkaListener(topics = "${kafka.topic.summary-results}", groupId = "${spring.kafka.consumer.group-id}", containerFactory = "summaryResultListenerContainerFactory")
     public void listenSummaryResult(SummaryResultDto message) {
         String redisKey = "summary:" + message.streamId();
