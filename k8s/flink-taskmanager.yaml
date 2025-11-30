@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: flink-taskmanager
 spec:
-  replicas: 1 # Adjust as needed
+  replicas: 2 # Adjust as needed
   selector:
     matchLabels:
       app: flink-taskmanager
@@ -20,16 +20,22 @@ spec:
         - name: flink-taskmanager
           image: hyeneung/flink-sentiment-analyzer:latest
           imagePullPolicy: Always
-          command: ["/docker-entrypoint.sh"]
-          args: ["taskmanager"] # Pass "taskmanager" as an argument to the entrypoint
-          ports:
-            - containerPort: 9200 # Prometheus metrics port
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              # Copy the config file from the read-only ConfigMap mount to the writable conf directory
+              cp /opt/flink/conf-template/flink-conf.yaml /opt/flink/conf/flink-conf.yaml
+              # Execute the original entrypoint script
+              /docker-entrypoint.sh taskmanager
           env:
             - name: JOB_MANAGER_RPC_ADDRESS
               value: "flink-jobmanager-service"
-            - name: FLINK_PROPERTIES_BLOB_SERVER_PORT
-              value: "6124"
-            - name: FLINK_PROPERTIES_METRICS_REPORTER_PROM_CLASS
-              value: "org.apache.flink.metrics.prometheus.PrometheusReporter"
-            - name: FLINK_PROPERTIES_METRICS_REPORTER_PROM_PORT
-              value: "9200"
+          ports:
+            - containerPort: 9200 # Prometheus metrics port
+          volumeMounts:
+            - name: flink-config-volume
+              mountPath: /opt/flink/conf-template
+      volumes:
+        - name: flink-config-volume
+          configMap:
+            name: flink-config

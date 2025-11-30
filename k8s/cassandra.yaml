@@ -76,4 +76,4 @@ spec:
         accessModes: ["ReadWriteOnce"] # Can be mounted by a single node
         resources:
           requests:
-            storage: 1Gi # Request 1 GB of storage
+            storage: 8Gi # Request 8 GB of storage

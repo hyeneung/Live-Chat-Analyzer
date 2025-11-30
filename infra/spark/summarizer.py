@@ -1,4 +1,5 @@
 import logging
+import time
 import asyncio
 import os
 import openai
@@ -33,31 +34,32 @@ async def get_summary_from_gpt(text):
     logging.info("Calling OpenAI API for text starting with: %s", text[:50])
     if not openai.api_key:
         logging.error("OPENAI_API_KEY environment variable not set.")
-        return "Error: OpenAI API key not configured."
+        return "Error: OpenAI API key not configured.", 0
     try:
-        with OPENAI_API_LATENCY.time(): # Measure time for OpenAI API call
-            loop = asyncio.get_running_loop()
-            response = await loop.run_in_executor(
-                None,  # Use the default executor
-                lambda: openai.ChatCompletion.create(
-                    model="gpt-3.5-turbo",
-                    messages=[
-                        {"role": "system", "content": "You are a helpful assistant that summarizes chat messages from a live stream in Korean."},
-                        {"role": "user", "content": f"Please summarize the following chat messages in one or two sentences in Korean:\n\n{text}"}
-                    ],
-                    temperature=0.7,
-                    max_tokens=150,
-                    top_p=1.0,
-                    frequency_penalty=0.0,
-                    presence_penalty=0.0,
-                )
+        start_time = time.time()
+        loop = asyncio.get_running_loop()
+        response = await loop.run_in_executor(
+            None,  # Use the default executor
+            lambda: openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": "You are a helpful assistant that summarizes chat messages from a live stream in Korean."},
+                    {"role": "user", "content": f"Please summarize the following chat messages in one or two sentences in Korean:\n\n{text}"}
+                ],
+                temperature=0.7,
+                max_tokens=150,
+                top_p=1.0,
+                frequency_penalty=0.0,
+                presence_penalty=0.0,
             )
+        )
+        duration = time.time() - start_time
         summary = response.choices[0].message.content.strip()
         logging.info("Successfully received summary from OpenAI API.")
-        return summary
+        return summary, duration
     except Exception as e:
         logging.error("Error calling OpenAI API: %s", e)
-        return f"Error: Could not generate summary. Details: {e}"
+        return f"Error: Could not generate summary. Details: {e}", 0
 
 def summarize_partition(iterator):
     rows = list(iterator)
@@ -77,19 +79,19 @@ def summarize_partition(iterator):
             tasks.append(get_summary_from_gpt(full_chat))
         return await asyncio.gather(*tasks)
 
-    summaries = asyncio.run(summarize_all())
+    summaries_and_latencies = asyncio.run(summarize_all())
     
     results = []
     stream_ids = list(chats_by_stream.keys())
-    for i, summary in enumerate(summaries):
-        results.append({"streamId": stream_ids[i], "summary": summary})
+    for i, (summary, latency) in enumerate(summaries_and_latencies):
+        results.append({"streamId": stream_ids[i], "summary": summary, "latency": latency})
         
     return iter(results)
 
 def is_repeated_char(s):
     """
     Checks if a string consists of a single character repeated.
-    e.g., 'aaaa', 'bbbbb', 'ㅋㅋㅋㅋ'
+    e.g., 'aaaa', 'bbbbb', '?�ㅋ?�ㅋ'
     """
     if not s or len(s) <= 1:
         return False
@@ -143,6 +145,14 @@ def process_batch(df, epoch_id):
         return
         
     summaries_df = summaries_rdd.toDF()
+
+    # Collect latencies and observe them on the driver
+    if "latency" in summaries_df.columns:
+        latencies = summaries_df.select("latency").collect()
+        for row in latencies:
+            if row.latency > 0:
+                OPENAI_API_LATENCY.observe(row.latency)
+        summaries_df = summaries_df.drop("latency")
 
     logging.info("Summaries:")
     summaries_df.show(truncate=False)

@@ -4,6 +4,9 @@ spring:
     username: a
     password: a
     driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      leak-detection-threshold: 60000
+      maximum-pool-size: 20
   jpa:
     hibernate:
       ddl-auto: update

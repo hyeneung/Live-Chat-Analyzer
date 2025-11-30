@@ -103,10 +103,9 @@ class ChatReplayer {
 function generateToken() {
     const payload = {
         sub: CHATBOT_USER_ID,
-        exp: Math.floor(Date.now() / 1000) + (60 * 60)
+        exp: Math.floor(Date.now() / 1000) + (60 * 60) // 1 hour expiration
     };
-    const decodedSecret = Buffer.from(SECRET_KEY, 'base64');
-    return jwt.sign(payload, decodedSecret, { algorithm: 'HS256' });
+    return jwt.sign(payload, SECRET_KEY, { algorithm: 'HS512' });
 }
 
 function sendCommentToServer(youtubeMessage, client) {

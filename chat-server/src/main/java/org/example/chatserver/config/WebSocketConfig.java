@@ -2,9 +2,11 @@ package org.example.chatserver.config;
 
 import lombok.RequiredArgsConstructor;
 import org.example.chatserver.interceptor.AuthChannelInterceptor;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.ChannelRegistration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
@@ -18,6 +20,7 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     private final AuthChannelInterceptor authChannelInterceptor;
+    private final ThreadPoolTaskScheduler webSocketTaskScheduler;
 
     /**
      * Configures the message broker.
@@ -26,8 +29,10 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
         // frontend code : this.stompClient.subscribe(/topic/${this.streamId}, message => { ...
-        registry.enableSimpleBroker(WebSocketConstants.TOPIC_PREFIX);
-
+        registry.enableSimpleBroker(WebSocketConstants.TOPIC_PREFIX)
+                .setHeartbeatValue(new long[]{20000, 20000})
+                .setTaskScheduler(webSocketTaskScheduler);
+        
         // Designates the "/publish" prefix for messages that are bound for @MessageMapping-annotated methods.
         // frontend code : this.stompClient.send("/publish/{@MessageMapping endpoint}", headers, message);
         registry.setApplicationDestinationPrefixes(WebSocketConstants.APP_PREFIX);

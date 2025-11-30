@@ -2,19 +2,16 @@ package org.example.userserver.global.redis;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import org.example.userserver.domain.stream.dto.RedisMessageDto;
 import org.example.userserver.domain.stream.dto.response.StreamUserCountUpdateDto;
 import org.example.userserver.domain.stream.service.StreamService;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.connection.Message;
 import org.springframework.data.redis.connection.MessageListener;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 
-/**
- * RedisSubscriber is a message listener that processes messages from Redis channels.
- * It is responsible for handling real-time updates, specifically for notifying
- * stream user count changes.
- */
 @Component
 @RequiredArgsConstructor
 public class RedisSubscriber implements MessageListener {
@@ -33,8 +30,12 @@ public class RedisSubscriber implements MessageListener {
     @Override
     public void onMessage(Message message, byte[] pattern) {
         try {
-            StreamUserCountUpdateDto dto = objectMapper.readValue(message.getBody(), StreamUserCountUpdateDto.class);
-            streamService.notifyUserCountUpdate(dto);
+            RedisMessageDto messageDto = objectMapper.readValue(message.getBody(), RedisMessageDto.class);
+
+            if ("stream-update".equals(messageDto.type())) {
+                StreamUserCountUpdateDto updateDto = objectMapper.readValue(messageDto.payload(), StreamUserCountUpdateDto.class);
+                streamService.notifyUserCountUpdate(updateDto);
+            }
         } catch (IOException e) {
             throw new RuntimeException("Failed to process Redis message", e);
         }

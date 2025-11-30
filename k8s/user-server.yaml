@@ -27,7 +27,7 @@ spec:
         app: user-server
       annotations:
         prometheus.io/scrape: 'true'
-        prometheus.io/path: '/users/actuator/prometheus'
+        prometheus.io/path: '/actuator/prometheus'
         prometheus.io/port: '8080'
     spec:
       containers:
@@ -59,14 +59,14 @@ spec:
               mountPath: /app/config
           readinessProbe:
             httpGet:
-              path: /users/actuator/health/readiness
+              path: /actuator/health/readiness
               port: 8080
             initialDelaySeconds: 30
             periodSeconds: 10
             failureThreshold: 3
           livenessProbe:
             httpGet:
-              path: /users/actuator/health/liveness
+              path: /actuator/health/liveness
               port: 8080
             initialDelaySeconds: 60
             periodSeconds: 20

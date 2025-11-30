@@ -165,7 +165,7 @@ def run_flink_job():
     """Defines the source, processing, and sink for the PyFlink application and executes the job."""
     logging.info("Starting Flink sentiment analysis job...")
     env = StreamExecutionEnvironment.get_execution_environment()
-    env.set_parallelism(1)
+    env.set_parallelism(4)
 
     logging.info(f"Kafka Source: bootstrap_servers={BOOTSTRAP_SERVERS}, topic={SOURCE_TOPIC}, group_id={KAFKA_GROUP_ID}")
     logging.info(f"Kafka Sink: bootstrap_servers={BOOTSTRAP_SERVERS}, topic={SINK_TOPIC}")

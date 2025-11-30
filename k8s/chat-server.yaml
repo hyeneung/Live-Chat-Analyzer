@@ -17,7 +17,7 @@ kind: Deployment
 metadata:
   name: chat-server
 spec:
-  replicas: 2
+  replicas: 4
   selector:
     matchLabels:
       app: chat-server
