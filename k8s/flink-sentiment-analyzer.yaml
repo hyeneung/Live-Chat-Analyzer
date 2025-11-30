@@ -13,6 +13,8 @@ spec:
           args:
             - "run" # Use 'run' action
             - "-d" # Detached mode
+            - "-p" # Set the parallelism
+            - "4" # same as 'raw-chats' topic's partition count
             - "-py"
             - "/app/sentiment_analyzer.py" # Path to the Python script inside the image
             - "-m"
