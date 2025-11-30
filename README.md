@@ -98,7 +98,7 @@ graph TD
     UserServer <-->|"Cache/Tokens"| Redis
 
     %% Chat Processing Pipeline  
-    ChatServer -->|"Raw Messages"| RawChats
+    ChatServer -->|"For Async Processing"| RawChats
     RawChats -->|"Stream Processing"| Flink
     Flink -->|"Analysis"| Analysis
     Analysis --> ChatServer
@@ -110,7 +110,7 @@ graph TD
     %% Persistence & Distribution
     RawChats -->|"Sink"| Connect
     Connect --> Cassandra
-    ChatServer <-->|"Live Updates (Pub/Sub)"| Redis
+    ChatServer <-->|"Fan-out via Pub/Sub (broadcast:{streamId})"| Redis
 
     %% Monitoring
     Prometheus -->|Scrapes Metrics| UserServer
@@ -134,7 +134,7 @@ This project is built using a distributed microservices architecture, leveraging
 
 -   **Frontend (Vercel)**: A **Vue.js** single-page application hosted externally on **Vercel**, providing the user interface.
 -   **User Server (Spring Boot)**: Manages user authentication, stream metadata, tracks viewer counts, and publishes updates to Redis. Delivers real-time viewer count updates via **Server-Sent Events (SSE)**.
--   **Chat Server (Spring Boot)**: Handles real-time communication via **WebSockets (STOMP)**, publishes raw chat messages to Kafka, consumes processed data from Kafka, and distributes updates to clients via dynamic Redis Pub/Sub channels.
+-   **Chat Server (Spring Boot)**: Handles real-time communication via **WebSockets (STOMP)**. It publishes raw chat messages to Kafka for asynchronous processing. For immediate fan-out to clients, it directly publishes messages to dynamic Redis Pub/Sub channels. It also consumes processed data (like analysis and summary results) from other Kafka topics, which are then distributed to clients via Redis.
 
 ### Data & Processing Pipeline
 

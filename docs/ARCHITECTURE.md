@@ -85,7 +85,7 @@ graph TD
     UserServer <-->|"Cache/Tokens"| Redis
 
     %% Chat Processing Pipeline  
-    ChatServer -->|"Raw Messages"| RawChats
+    ChatServer -->|"For Async Processing"| RawChats
     RawChats -->|"Stream Processing"| Flink
     Flink -->|"Analysis"| Analysis
     Analysis --> ChatServer
@@ -97,7 +97,7 @@ graph TD
     %% Persistence & Distribution
     RawChats -->|"Sink"| Connect
     Connect --> Cassandra
-    ChatServer <-->|"Live Updates (Pub/Sub)"| Redis
+    ChatServer <-->|"Fan-out via Pub/Sub (broadcast:{streamId})"| Redis
 
     %% Monitoring
     Prometheus -->|Scrapes Metrics| UserServer
@@ -151,7 +151,25 @@ graph TD
 ### 4. **Data Flow Highlights**
 
 -   **User Interaction**: Clients access the **Frontend** hosted on **Vercel**. The Frontend then communicates with the **Kubernetes Ingress** for API calls to the **User Server** and WebSocket connections to the **Chat Server**. Direct SSE connections for real-time updates also flow through Ingress to the User Server.
+
 -   **Real-time Chat/Analysis**: Chat messages -> **Chat Server** -> **Kafka (`raw-chats`)** -> **Flink** (sentiment analysis) -> **Kafka (`analysis-result`)** -> **Chat Server** -> **Redis Pub/Sub (`broadcast:{streamId}`)** -> **Chat Server** (WebSocket) -> Client.
--   **Chat Persistence**: **Kafka (`raw-chats`)** -> **Kafka Connect** -> **Cassandra**.
 -   **Periodic Summarization**: **Flink** (trigger) -> **Kafka (`summary-requests`)** -> **Spark** (summarization) -> **Kafka (`summary-results`)** -> **Chat Server** -> **Redis Pub/Sub (`broadcast:{streamId}`)** -> **Chat Server** (WebSocket) -> Client.
+-   **Chat Persistence**: **Kafka (`raw-chats`)** -> **Kafka Connect** -> **Cassandra**.
+
+-   **Real-time Chat Flow (Latency Optimized)**:
+    1.  A user sends a chat message, which is received by the **Chat Server** via a WebSocket connection.
+    2.  To minimize latency for the end-user, the Chat Server **immediately** publishes the message to a dynamic **Redis Pub/Sub** channel (e.g., `broadcast:{streamId}`). Other connected clients receive this message instantly.
+    3.  Simultaneously, the Chat Server publishes the same raw message to the **Kafka `raw-chats` topic**. This ensures the message is durably stored in the processing pipeline.
+    4.  The `raw-chats` topic is then consumed by **Flink** for real-time analysis and by **Kafka Connect** for long-term persistence in **Cassandra**.
+    
+    *This dual-write approach (Redis for speed, Kafka for durability/processing) ensures that real-time chat feels instantaneous to users, while still leveraging Kafka's power for complex backend processing.*
+
+-   **Asynchronous ML/Data Processing Flow**:
+    1.  Downstream services like **Flink** (for sentiment analysis) and **Spark** (for summarization) process the data.
+    2.  They publish their results to dedicated Kafka topics: `analysis-result` and `summary-results`.
+    3.  The **Chat Server** consumes messages from these topics. This is a deliberate design choice. While the server *produces* to `raw-chats`, it *consumes* from the result topics.
+    4.  Upon receiving an analysis or summary result from Kafka, the Chat Server publishes it to the appropriate **Redis Pub/Sub** channel, which then gets broadcasted to all connected clients.
+
+    *__Architectural Rationale__*: Using Kafka as a buffer for `analysis-result` and `summary-results` provides significant advantages. It decouples the Chat Server from the ML processing pipeline. These result topics can be consumed by multiple services in the future (e.g., for model re-training, evaluation dashboards, or analytics) without any changes to the existing flow. Kafka's scaling, failover, and message replay capabilities make it the ideal choice for handling these valuable, asynchronously generated data artifacts.*
+
 -   **Observability**: All services expose metrics which are scraped by **Prometheus**, visualized by **Grafana**. **Kafka Exporter** specifically provides metrics for the Kafka cluster.
