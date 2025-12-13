@@ -2,6 +2,10 @@
 
 This document provides a detailed overview of the Live Chat Analyzer system architecture, illustrating the components and data flows.
 
+## System Architecture
+This project is composed of several microservices and a data processing pipeline that work together to provide real-time analysis.
+<img width="2370" height="1202" alt="image" src="https://github.com/user-attachments/assets/954a3939-c3ed-482e-9dbb-74a4052a5723" />
+
 ## Architecture Diagram (Mermaid)
 
 The following diagram can be rendered on platforms like GitHub to visualize the system's structure.
