@@ -68,4 +68,18 @@ Container-level resource metrics collected directly from the Kubernetes nodes' K
 | **Pod Memory Usage** | `sum(container_memory_working_set_bytes{image!=""}) by (pod)` | Shows the working set memory usage for each Pod. |
 | **Container Network Receive** | `sum(rate(container_network_receive_bytes_total[5m])) by (pod)` | Shows the rate of network traffic (bytes/sec) being received by each Pod. |
 | **Container Network Transmit** | `sum(rate(container_network_transmit_bytes_total[5m])) by (pod)` | Shows the rate of network traffic (bytes/sec) being transmitted by each Pod. |
+---
 
+### 6. Redis Key Metrics
+
+Metrics collected via Redis Exporter.
+
+| Title | PromQL Query | Description |
+| :--- | :--- | :--- |
+| **Memory Usage** | `redis_memory_used_bytes` | Shows the total memory allocated by Redis. |
+| **Connected Clients** | `redis_connected_clients` | Number of client connections (excluding connections from replicas). |
+| **Commands Processed Per Second** | `rate(redis_commands_total[5m])` | The rate of commands processed by the Redis server per second. |
+| **Uptime** | `redis_uptime_in_seconds / 3600` | Redis server uptime in hours. |
+| **Keyspace Hit Ratio** | `(rate(redis_keyspace_hits_total[5m]) / (rate(redis_keyspace_hits_total[5m]) + rate(redis_keyspace_misses_total[5m]))) * 100` | Percentage of successful key lookups. A high ratio is desirable. |
+| **Evicted Keys Per Second** | `rate(redis_evicted_keys_total[5m])` | The rate of keys being evicted due to memory limits. Should ideally be 0. |
+| **Average Command Latency (All)** | `rate(redis_commands_duration_seconds_total[5m]) / rate(redis_commands_total[5m])` | The average time for all commands to be processed by Redis. A good indicator of overall Redis health. |

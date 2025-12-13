@@ -77,6 +77,13 @@ Verify that the NGINX Ingress Controller pods are running:
 kubectl get pods -n ingress-basic -l app.kubernetes.io/name=ingress-nginx
 ```
 
+After the pods are running, find the external IP address of the Ingress Controller's service. This IP is the public entry point for your application.
+
+```bash
+kubectl get service -n ingress-basic
+```
+Look for the `EXTERNAL-IP` value for the `ingress-nginx-controller` service.
+
 **Reference:** For more details on deploying NGINX Ingress Controller on AKS, refer to the Azure documentation:
 [Create an ingress controller on Azure Kubernetes Service (AKS)](https://learn.microsoft.com/ko-kr/troubleshoot/azure/azure-kubernetes/load-bal-ingress-c/create-unmanaged-ingress-controller?tabs=azure-cli)
 

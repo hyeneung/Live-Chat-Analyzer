@@ -4,7 +4,7 @@ import sys
 from transformers import pipeline
 
 from pyflink.common import SimpleStringSchema, Types, WatermarkStrategy
-from pyflink.datastream import StreamExecutionEnvironment, ProcessFunction, KeyedProcessFunction, OutputTag
+from pyflink.datastream import StreamExecutionEnvironment, ProcessFunction, KeyedProcessFunction, OutputTag, CheckpointingMode
 from pyflink.datastream.state import ValueStateDescriptor
 from pyflink.datastream.connectors.kafka import KafkaSource, KafkaSink, KafkaRecordSerializationSchema
 from pyflink.datastream.connectors.kafka import KafkaOffsetsInitializer
@@ -165,7 +165,13 @@ def run_flink_job():
     """Defines the source, processing, and sink for the PyFlink application and executes the job."""
     logging.info("Starting Flink sentiment analysis job...")
     env = StreamExecutionEnvironment.get_execution_environment()
-    env.set_parallelism(4)
+
+    # 1. Enable checkpointing (e.g., every 10 seconds) - Essential for Kafka offset commits
+    env.enable_checkpointing(10000)
+    # 2. Set the checkpointing mode (EXACTLY_ONCE is a good default)
+    env.get_checkpoint_config().set_checkpointing_mode(CheckpointingMode.EXACTLY_ONCE)
+
+    env.set_parallelism(8)
 
     logging.info(f"Kafka Source: bootstrap_servers={BOOTSTRAP_SERVERS}, topic={SOURCE_TOPIC}, group_id={KAFKA_GROUP_ID}")
     logging.info(f"Kafka Sink: bootstrap_servers={BOOTSTRAP_SERVERS}, topic={SINK_TOPIC}")

@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: flink-taskmanager
 spec:
-  replicas: 2 # Adjust as needed
+  replicas: 8 # Adjust as needed
   selector:
     matchLabels:
       app: flink-taskmanager

@@ -30,8 +30,8 @@ spec:
               # Create summary-results topic
               kafka-topics --bootstrap-server kafka-controller-headless:9092 --create --if-not-exists --topic summary-results --partitions 4 --replication-factor 3
               # Create raw-chats topic
-              kafka-topics --bootstrap-server kafka-controller-headless:9092 --create --if-not-exists --topic raw-chats --partitions 4 --replication-factor 3
+              kafka-topics --bootstrap-server kafka-controller-headless:9092 --create --if-not-exists --topic raw-chats --partitions 8 --replication-factor 3
               # Create analysis-result topic
-              kafka-topics --bootstrap-server kafka-controller-headless:9092 --create --if-not-exists --topic analysis-result --partitions 4 --replication-factor 3
+              kafka-topics --bootstrap-server kafka-controller-headless:9092 --create --if-not-exists --topic analysis-result --partitions 8 --replication-factor 3
               echo "Kafka topics created."
       restartPolicy: OnFailure

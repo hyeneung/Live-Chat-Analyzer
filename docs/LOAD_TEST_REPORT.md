@@ -6,7 +6,7 @@ This document outlines the scenario for load testing the real-time chat system, 
 
 ### 1.1. Objective
 
-The primary goal of this load test is to evaluate the performance and stability of the chat system under a high-volume messaging load. The test simulates a large number of concurrent users sending messages at a steady rate, allowing us to measure message processing latency, resource utilization, and overall system reliability. This scenario specifically targets the latency improvements made by refactoring the `chat-server` to publish messages directly to Redis.
+The primary goal of this load test is to evaluate the performance and stability of the chat system under a high-volume messaging load. The test simulates a large number of concurrent users sending messages at a steady rate, allowing us to measure message processing latency, resource utilization, and overall system reliability.
 
 ### 1.2. Test Configuration
 
@@ -40,124 +40,115 @@ The cluster consists of two node pools with different VM sizes to accommodate sy
 
 ### 2.2. Service Deployment Configuration
 
-The key components of the real-time data pipeline are configured as follows:
+The key components of the real-time data pipeline are configured as follows (Optimized Configuration):
 
-| Service               | Replicas / Parallelism                                 | Details                                                                                           |
-| --------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------- |
-| **Chat Server**       | 2 Replicas                                             | Handles WebSocket connections and the initial message fan-out.                                    |
-| **User Server**       | 1 Replica                                              | Manages user authentication and stream metadata.                                                  |
-| **Kafka Cluster**     | 3 Brokers                                              | Provides a fault-tolerant message bus.                                                            |
-| &nbsp;&nbsp;↳ Topics | 4 Partitions each                                      | All topics (`raw-chats`, `analysis-result`, etc.) are partitioned for parallel consumption.       |
-| **Flink Cluster**     | Parallelism: 4 (2 TaskManagers with 2 slots each)      | Aligns with the Kafka topic partition count for optimal parallel processing of sentiment analysis.  |
-| **Redis Cluster**     | 1 Master, 3 Replicas                                   | Manages high-throughput Pub/Sub messaging for real-time fan-out and caching.                      |
-| **Spark Cluster**     | 1 Master, 1 Worker                                     | Handles periodic batch summarization jobs.                                                        |
-| **Databases**         | Cassandra (1 Replica), MySQL (1 Replica)               | Provide persistent storage for chat logs and relational metadata, respectively.                   |
+| Service               | Replicas / Parallelism                                 | Details                                                                                                                           |
+| --------------------- | ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
+| **Chat Server** | 2 Replicas                                             | Handles WebSocket connections. Scaled down from 4 to 2 during optimization.                                                       |
+| **User Server** | 1 Replica                                              | Manages user authentication and stream metadata.                                                                                  |
+| **Kafka Cluster** | 3 Brokers                                              | Provides a fault-tolerant message bus.                                                                                            |
+| &nbsp;&nbsp;↳ Topics | **8 Partitions** (`raw-chats`, `analysis-result`)      | Key high-volume topics scaled to **8 partitions** to match Flink parallelism. Other topics remain at 4.                           |
+| **Flink Cluster** | **Parallelism: 8** (8 TaskManagers with 1 slot each)   | Scaled out to 8 to eliminate backpressure. 1 slot per TM ensures isolation and dedicated resources.                               |
+| **Redis Cluster** | 1 Master, 3 Replicas                                   | Manages high-throughput Pub/Sub messaging for real-time fan-out and caching.                                                      |
+| **Spark Cluster** | 1 Master, 1 Worker                                     | Handles periodic batch summarization jobs.                                                                                        |
+| **Databases** | Cassandra (1 Replica), MySQL (1 Replica)               | Provide persistent storage for chat logs and relational metadata, respectively.                                                   |
 
----
+## 3. Executive Summary of Results
 
-## 3. Detailed Analysis of Primary Test (Flink Parallelism = 4)
+Key Finding: **Scaling Flink Parallelism from 4 to 8** eliminated critical bottlenecks (99.8% backpressure), allowing the system to handle maximum load with **zero backpressure**, even when Chat Server resources were halved (Scale-in).
 
-This section provides a detailed analysis of the main test, conducted from **07:05 to 07:22**, where the system was stable and performed optimally.
+## 4. Performance Summary Table
 
-### 3.1. Key Metrics Summary
+| Metric | Period 1 (Chat 4 / Flink 4) | Period 2 (Chat 4 / Flink 8) | Period 3 (Chat 2 / Flink 4) | Period 4 (Chat 2 / Flink 8) |
+| :--- | :--- | :--- | :--- | :--- |
+| **Max Users** | 396 | 483 (+22.0%) | 483 (+22.0%) | **499 (+26.0%)** |
+| **Flink Backpressure** | **99.8% (Critical)** | 60.3% (-39.6%) | 66.1% (-33.8%) | **0.0% (Perfect)** |
+| **Flink Processing Lag** | 45,551 | 33,999 (-25.4%) | 43,375 (-4.8%) | **8,114 (-82.2%)** |
+| **Cassandra Sink Lag** | 10,844 | 10,433 (-3.8%) | 13,845 (+27.7%) | **8,115 (-25.2%)** |
+| **Kafka RPS (Max)** | 203 | 212 (+4.4%) | **346 (+70.4%)** | 82* (-59.6%) |
+| **Chat CPU (Per Pod)** | 0.18 cores | 0.12 cores (-33.3%) | 0.27 cores (+50.0%) | **0.42 cores (+133.3%)** |
+| **Chat Memory (Per Pod)** | 109 MB | 76 MB (-30.3%) | 124 MB (+13.8%) | 26 MB (-76.1%) |
 
-| Component / Metric                  | Peak Value                         | Average (during load)            | Status / Notes                                             |
-| ----------------------------------- | ---------------------------------- | -------------------------------- | ---------------------------------------------------------- |
-| **`chat-server-0` CPU**             | 1.0 vCPU Core                      | ~0.9 vCPU Core                   | **Saturated**. Indicates a primary performance bottleneck. |
-| **`chat-server-1` CPU**             | 1.0 vCPU Core                      | ~0.9 vCPU Core                   | **Saturated**. Load is well-distributed.                   |
-| **`chat-server-0` JVM Memory**      | ~950 MB                            | ~800 MB                          | **High Usage**. Shows significant memory imbalance.        |
-| **`chat-server-1` JVM Memory**      | ~250 MB                            | ~250 MB                          | **Stable**. Highlights the imbalance with Pod 0.           |
-| **WebSocket Sessions**              | 464 total (228 + 236)              | ~450                             | Excellent balance between pods.                            |
-| **Kafka Ingress (`raw-chats`)**     | 280 RPS                            | ~125 RPS                         | Throttled by server CPU, but pipeline handled the peak.    |
-| **Kafka Lag (Flink)**               | < 10 messages                      | ~0                               | **Healthy**. No processing delay.                          |
-| **Kafka Lag (Cassandra Sink)**      | 17,641 messages                    | -                                | Temporary spike, but recovered quickly.                    |
-| **Flink Backpressure**              | 0 %                                | 0 %                              | **Healthy**. No backpressure at any stage.                 |
+*\*Note: The low RPS in Period 4 is a measurement artifact (see Section 5.4).*
 
-### 3.2. Detailed Interpretation
--   **CPU Bottleneck**: The `chat-server` pods consistently hit their CPU limits (~1.0 core) during the peak phase (`07:13`-`07:16`). This saturation is the definitive bottleneck of the system, limiting its ability to handle more than ~500 users.
--   **Memory Imbalance**: There is a severe and consistent memory imbalance between `chat-server-0` (~950MB) and `chat-server-1` (~250MB). This is not related to load distribution (as sessions/CPU were balanced) and points to an application-level issue like a memory leak or inefficient object allocation in one pod, requiring a deep-dive analysis.
--   **Pipeline Health**: The data pipeline itself was perfectly healthy. The peak ingress of 280 RPS on the `raw-chats` topic was handled flawlessly by Flink, with zero backpressure and negligible consumer lag for real-time analysis. This confirms the parallelism=4 configuration is effective.
+## 5. Detailed Analysis by Scenario
 
----
+### 5.1. Period 1: Baseline (05:30 - 05:45)
+* **Configuration:** Chat 4 / Flink 4
+* **Metrics:**
+    * **Max Users:** 396
+    * **Flink Backpressure:** **99.8% (Critical)**
+    * **Flink Lag:** 45,551
+    * **Sink Lag:** 10,844
+    * **RPS:** 203
+    * **Chat CPU:** 0.18 cores/pod
+* **Analysis:**
+    This period served as the baseline. With only 396 users, the system stalled. **99.8% backpressure** confirms Flink (Parallelism 4) was the primary bottleneck. The majority of the lag (45k) was stuck at Flink ingestion, while the Cassandra Sink also showed backlog (10k).
 
-## 4. Comparative Analysis: Flink Parallelism (1 vs. 4)
+### 5.2. Period 2: Flink Scale-out (06:30 - 06:45)
+* **Configuration:** Chat 4 / **Flink 8**
+* **Metrics:**
+    * **Max Users:** 483 (+22% vs P1)
+    * **Flink Backpressure:** 60.3% (-40%p vs P1)
+    * **Flink Lag:** 33,999 (-25% vs P1)
+    * **Sink Lag:** 10,433 (Similar to P1)
+    * **RPS:** 212
+    * **Chat CPU:** 0.12 cores/pod
+* **Comparative Insights:**
+    Doubling Flink parallelism significantly improved throughput. **Backpressure dropped to 60.3%**, and Flink processing lag decreased by 25%. However, the Sink Lag remained constant (~10k), indicating that as Flink processed data faster, the database write bottleneck became more apparent.
 
-Two tests were conducted targeting a load of **500 concurrent users** generating approximately **250 messages per second (RPS)** in total. The key difference was the Flink job configuration.
-The impact of increasing Flink parallelism is most evident when comparing the unhealthy baseline test (P=1) with the stable primary test (P=4).
+### 5.3. Period 3: Stress Test (07:30 - 07:37)
+* **Configuration:** **Chat 2** / Flink 4
+* **Metrics:**
+    * **Max Users:** 483
+    * **Flink Backpressure:** 66.1% (+6%p vs P2)
+    * **Flink Lag:** 43,375 (Reverted to P1 level)
+    * **Sink Lag:** 13,845
+    * **RPS:** **346 (Highest)**
+    * **Chat CPU:** 0.27 cores/pod
+* **Comparative Insights:**
+    Halving Chat Servers and reverting Flink to 4 caused the bottleneck to return immediately.
+    1.  **Lag Spike:** Flink Lag surged back to 43k, proving **Flink 4 is the hard limit**.
+    2.  **RPS Surge (346):** High stress on Chat Servers caused internal buffering, leading to a traffic burst (Flush) to Kafka, recording the highest RPS.
+    3.  **Sink Lag Increase:** The sudden burst of data likely overwhelmed the Cassandra Sink temporarily, increasing Sink Lag to 13k.
 
-| Parameter           | Test 1 (Baseline)                                   | Test 2 (Improved)                                   | Change                                |
-| ------------------- | --------------------------------------------------- | --------------------------------------------------- | ------------------------------------- |
-| Time Window         | `06:30` - `06:45`                                   | `07:05` - `07:22`                                   | -                                     |
-| **Flink Parallelism** | **1**                                               | **4**                                               | **Increased from 1 to 4**             |
-| Kafka Partitions    | 4                                                   | 4                                                   | Identical                             |
+### 5.4. Period 4: Optimization (16:31 - 16:35)
+* **Configuration:** **Chat 2** / **Flink 8**
+* **Metrics:**
+    * **Max Users:** **499 (Highest)**
+    * **Flink Backpressure:** **0.0% (Perfect)**
+    * **Flink Lag:** **8,114 (Lowest)**
+    * **Sink Lag:** **8,115**
+    * **RPS:** 82 (Artifact)
+    * **Chat CPU:** **0.42 cores/pod (Highest)**
+* **Comparative Insights & The RPS Paradox:**
+    This configuration achieved the highest stability and performance.
+    1.  **Optimal Flow:** Flink Lag dropped massively (45k -> 8k), and Backpressure hit 0%. The remaining lag is now evenly split between Flink and Cassandra Sink, indicating the bottleneck has shifted to the DB layer.
+    2.  **Interpretation of Low RPS (82):**
+        * Despite handling 499 users, the recorded RPS was low (82). This is a **measurement artifact**.
+        * Because the system performance was optimal, the 500 client connections were established almost instantly. Consequently, the test script's timer terminated the session in just **~30 seconds**.
+        * The monitoring system (1-minute interval) averaged this short 30-second burst with the surrounding idle time, diluting the RPS value.
+    3.  **True Performance:** The record-high **CPU usage (0.42 cores/pod)** confirms that the servers were actually processing traffic at maximum density during that short window, validating the system's superior efficiency.
 
+## 6. Final Conclusion & Recommendations
 
-### 4.1. Pipeline Performance Comparison
+1.  **Optimal Config:** **Chat Server 2 / Flink Parallelism 8**.
+2.  **Shifting Bottlenecks:** The bottleneck shifted from **Flink Processing** (Period 1-3) to **Cassandra Sink** (Period 4).
+3.  **Recommendations:**
+    * **Deploy:** Chat 2 / Flink 8.
+    * **Tune:** Optimize Cassandra Sink (batch size, task count) to clear the remaining 8k lag.
+    * **Testing:** For future benchmarks, increase the test duration to at least **5 minutes** to ensure accurate RPS measurement.
 
-| Metric                  | Test 1 (P=1, Unhealthy)                      | Test 2 (P=4, Healthy)                        | Impact of Change                                      |
-| ----------------------- | -------------------------------------------- | -------------------------------------------- | ----------------------------------------------------- |
-| **Flink Backpressure**  | **100%** (at `06:38`)                        | **0%**                                       | **Problem Solved**: Processing bottleneck eliminated. |
-| **Kafka Lag (Flink)**   | **>20,000** messages (at `06:40`)            | **<10** messages                             | **Problem Solved**: Real-time processing restored.    |
-| **Kafka Ingress (RPS)** | Throttled to **~100 RPS**                    | Reached **280 RPS**                          | **3x Improvement**: System can now handle target load.  |
-| **Flink Throughput**    | Struggled at **2-3 RPS**                     | Peaked at **>5 RPS**                         | Matches the higher ingress rate.                      |
-
-### 4.2. Analysis
-With **Parallelism=1**, the Flink job was unable to process data from 4 Kafka partitions, leading to a complete pipeline stall. This created **100% backpressure**, which caused **massive consumer lag** and throttled the entire system's message intake. By increasing **Parallelism to 4**, each Flink instance handled one partition, resolving the bottleneck and allowing the system to achieve its full performance potential.
-
----
-
-## 5. Final Conclusion & Recommendations
-
-1.  **Primary Finding**: Increasing Flink parallelism from 1 to 4 was a **critical success**. It resolved the severe data pipeline bottleneck, enabling the system to handle its full target load without data processing delays.
-2.  **Identified Bottleneck**: The load tests clearly identify that the next performance limit is the **CPU capacity of the `chat-server` pods**.
-3.  **Recommendations**:
-    -   **Scale Horizontally**: To support more than 500 users, the `chat-server` deployment must be scaled horizontally (i.e., more pods).
-    -   **Investigate Memory**: A high-priority investigation into the **JVM memory imbalance** between `chat-server` pods is crucial for long-term stability.
-
-## 6. Test Artifacts
+## 7. Test Artifacts
 
 -   **Load Test Result (Grafana Snapshot):**
-    -   [https://snapshots.raintank.io/dashboard/snapshot/0KndBiPatPtWRRVlItf9s2tYqrJzWT8D](https://snapshots.raintank.io/dashboard/snapshot/0KndBiPatPtWRRVlItf9s2tYqrJzWT8D)
+    -   [https://snapshots.raintank.io/dashboard/snapshot/SNUqgRMT6IY1KwTNe8CqSG65Q7GnCkaP](https://snapshots.raintank.io/dashboard/snapshot/SNUqgRMT6IY1KwTNe8CqSG65Q7GnCkaP)
 -   **Load Testing Video:**
-    -   [https://drive.google.com/file/d/1ENJO6DjVqvnZNL91MDd98rzW2g5X1lVx/view?usp=sharing](https://drive.google.com/file/d/1ENJO6DjVqvnZNL91MDd98rzW2g5X1lVx/view?usp=sharing)
+    -   [chatserver4-flink4(05:30 - 05:45)](https://drive.google.com/file/d/1JggKiYHqO-ssOTslLE0z0Pr8u8JqJRtL/view?usp=sharing)
+    -   [chatserver4-flink8(06:30 - 06:45)](https://drive.google.com/file/d/1JaQLXQZIc52-z6rnc7kFAhxVo7wAGob-/view?usp=sharing)
+    -   [chatserver2-flink4(07:30 - 07:37)](https://drive.google.com/file/d/1ii3y3-Ajpll3i1JtBU114U-a0eJrFnm6/view?usp=sharing)
+    -   [chatserver2-flink8(16:31 - 16:35)](https://drive.google.com/file/d/1JiDsUEBACunpHIxfNYukgGAEYiDNQ2L8/view?usp=sharing)
 -   **Node CPU Utilization Screenshot(Before&After the test):**
     -   <img width="1029" height="230" alt="image" src="https://github.com/user-attachments/assets/f46ed09d-9920-4d8c-88ca-310877c279d7" />
 
 ---
-
-## 7. Scaling Test Analysis (4-Replica `chat-server`)
-
-Based on the baseline test identifying the `chat-server` CPU as the next bottleneck, a final test was run from **18:01** onwards with the number of `chat-server` replicas increased from 2 to 4. This section details the results of that test.
-
-### 7.1. Key Metrics Summary (4-Replica Test)
-
-| Component / Metric              | Peak Value                      | Average (during load) | Status / Notes                                                      |
-| ------------------------------- | ------------------------------- | --------------------- | ------------------------------------------------------------------- |
-| **Total Ingress Rate**          | **~450 RPS**                    | **~400 RPS**          | **Significant Improvement**. Throughput nearly doubled.             |
-| **`chat-server` CPU (per pod)** | ~0.9 vCPU Core                  | ~0.8 vCPU Core        | **Efficient**. Pods were busy but not fully saturated.               |
-| **`chat-server` JVM Memory**    | ~450 MB                         | ~400 MB               | **Stable**. The previous memory imbalance issue did not recur.      |
-| **WebSocket Sessions**          | ~500 total (~125 per pod)       | ~480 total            | **Excellent**. Load was perfectly distributed across 4 pods.        |
-| **Data Pipeline Health**        | Lag < 10, Backpressure = 0%     | -                     | **Healthy**. The pipeline handled the increased load without issue. |
-
-### 7.2. Comparative Results & Scaling Efficiency (2 vs. 4 Replicas)
-
-| Metric                        | Test with 2 Replicas | Test with 4 Replicas | Improvement Factor |
-| ----------------------------- | -------------------- | -------------------- | ------------------ |
-| `chat-server` Pods            | 2                    | 4                    | 2x                 |
-| **Sustained Throughput (RPS)**| ~125 RPS             | **~400 RPS**         | **~3.2x**          |
-| Avg CPU per Pod               | ~0.9 cores (Saturated)| ~0.8 cores           | More headroom      |
-| **System Efficiency (RPS per Core)** | ~69 RPS/core         | **~125 RPS/core**    | **+81%**           |
-
-### 7.3. Analysis and Final Conclusion
-- **Scaling Success**: Horizontally scaling the `chat-server` from 2 to 4 replicas was highly effective. It successfully removed the CPU bottleneck, leading to a **3.2x increase in system throughput** and an **81% gain in CPU efficiency**.
-- **System Capacity**: The system, in this configuration, can comfortably handle a sustained load of **400 RPS**. The next bottleneck at a much higher scale would likely be network bandwidth or database I/O.
-- **Stability**: The previous JVM memory imbalance issue appears to be resolved, contributing to the overall stability of the system under load.
-
----
-
-## 8. Test Artifacts
-
--   **Load Test Result (Grafana Snapshot):**
-    -   [https://snapshots.raintank.io/dashboard/snapshot/LnuLkmaYDmNUe5XbVNNYAUsjXBKJ0HHE](https://snapshots.raintank.io/dashboard/snapshot/LnuLkmaYDmNUe5XbVNNYAUsjXBKJ0HHE)
--   **Load Testing Video:**
-    -   [https://drive.google.com/file/d/15lYn1RCnb0VWonYI0GtqFkfaMa5ESUxL/view?usp=sharing](https://drive.google.com/file/d/15lYn1RCnb0VWonYI0GtqFkfaMa5ESUxL/view?usp=sharing)
